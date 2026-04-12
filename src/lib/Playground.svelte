@@ -160,8 +160,8 @@
 		display: grid;
 		grid-template-columns: 1fr 1fr;
 		gap: 0;
-		background: #222;
-		border: 1px solid #333;
+		background: var(--color-bg-tertiary);
+		border: 1px solid var(--color-border);
 		border-radius: 8px;
 		overflow: hidden;
 		position: relative;
@@ -173,13 +173,13 @@
 		flex-direction: column;
 		min-height: 0;
 		min-width: 0;
-		border-right: 1px solid #333;
+		border-right: 1px solid var(--color-border);
 	}
 
 	.editor-body {
 		flex: 1;
 		min-height: 0;
-		background: #0d1117;
+		background: var(--color-bg);
 	}
 
 	.previews {
@@ -198,20 +198,20 @@
 	}
 
 	.preview-panel + .preview-panel {
-		border-top: 1px solid #333;
+		border-top: 1px solid var(--color-border);
 	}
 
 	.preview-screen {
 		flex: 1;
 		min-height: 0;
 		overflow: hidden;
-		background: #0d1117;
+		background: var(--color-bg);
 	}
 
 	.panel-header {
 		padding: 0.4rem 0.75rem;
-		background: #1a1a2e;
-		color: #888;
+		background: var(--color-bg-secondary);
+		color: var(--color-text-muted);
 		font-size: 0.75rem;
 		text-transform: uppercase;
 		letter-spacing: 0.05em;
@@ -223,7 +223,7 @@
 
 	.size-indicator {
 		font-size: 0.65rem;
-		color: #aaa;
+		color: var(--color-text-light);
 		font-variant-numeric: tabular-nums;
 	}
 
@@ -234,7 +234,7 @@
 		width: 8px;
 		cursor: col-resize;
 		z-index: 10;
-		background: #333;
+		background: var(--color-border);
 		transition: background 0.15s;
 	}
 
@@ -246,8 +246,8 @@
 		width: 4px;
 		height: 32px;
 		transform: translateY(-50%);
-		border-left: 1px solid #555;
-		border-right: 1px solid #555;
+		border-left: 1px solid var(--color-border-medium);
+		border-right: 1px solid var(--color-border-medium);
 	}
 
 	.divider-h {
@@ -258,7 +258,7 @@
 		bottom: -4px;
 		cursor: row-resize;
 		z-index: 10;
-		background: #333;
+		background: var(--color-border);
 		border-radius: 0 0 8px 8px;
 		transition: background 0.15s;
 	}
@@ -271,12 +271,12 @@
 		width: 32px;
 		height: 4px;
 		transform: translateX(-50%);
-		border-top: 1px solid #555;
-		border-bottom: 1px solid #555;
+		border-top: 1px solid var(--color-border-medium);
+		border-bottom: 1px solid var(--color-border-medium);
 	}
 
 	.divider-v:hover, .divider-h:hover {
-		background: #48cae4;
+		background: var(--color-accent);
 	}
 
 	.controls {
@@ -290,13 +290,13 @@
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
-		color: #888;
+		color: var(--color-text-muted);
 		font-size: 0.8rem;
 	}
 
 	.controls input[type="range"] {
 		width: 100px;
-		accent-color: #48cae4;
+		accent-color: var(--color-accent);
 	}
 
 	.controls span {

@@ -1,6 +1,7 @@
 <script>
 	import Playground from '$lib/Playground.svelte';
 	import Section from '$lib/Section.svelte';
+	import ThemeToggle from '$lib/ThemeToggle.svelte';
 
 	const defaultExample = `<script>
     let count = $state(0)
@@ -14,16 +15,32 @@
 </div>
 
 <style>
+    :root {
+        --text: #e8e8e8;
+        --accent: #48cae4;
+        --accent-warm: #fbbf24;
+        --btn-border: #555;
+    }
+
+    @media (prefers-color-scheme: light) {
+        :root {
+            --text: #1a1a2e;
+            --accent: #0891b2;
+            --accent-warm: #d97706;
+            --btn-border: #999;
+        }
+    }
+
     .counter {
         display: flex;
         flex-direction: column;
-        color: #e8e8e8;
+        color: var(--text);
 
         @media (display-mode: browser) {
             gap: 0.75rem;
             padding: 1.5rem;
             font-family: system-ui, sans-serif;
-            border: 2px solid #48cae4;
+            border: 2px solid var(--accent);
             border-radius: 8px;
         }
 
@@ -32,19 +49,19 @@
             gap: 1cell;
             padding: 1cell 2cell 0 2cell;
             border: rounded;
-            border-color: #48cae4;
+            border-color: var(--accent);
         }
     }
 
-    .title { color: #48cae4; font-weight: bold; }
-    .value { color: #fbbf24; font-weight: bold; }
+    .title { color: var(--accent); font-weight: bold; }
+    .value { color: var(--accent-warm); font-weight: bold; }
 
     button {
-        color: #e8e8e8;
-        border-color: #555;
+        color: var(--text);
+        border-color: var(--btn-border);
 
         @media (display-mode: browser) {
-            border: 1px solid #555;
+            border: 1px solid var(--btn-border);
             border-radius: 4px;
             padding: 0.4rem 1.2rem;
             cursor: pointer;
@@ -58,14 +75,14 @@
     }
 
     button:focus {
-        border-color: #fbbf24;
-        color: #fbbf24;
+        border-color: var(--accent-warm);
+        color: var(--accent-warm);
         font-weight: bold;
     }
 
     button:hover {
-        border-color: #48cae4;
-        color: #48cae4;
+        border-color: var(--accent);
+        color: var(--accent);
     }
 </style>`;
 </script>
@@ -76,7 +93,11 @@
 
 <main>
 	<header>
-		<h1>svelterm</h1>
+		<div class="header-row">
+			<div></div>
+			<h1>svelterm</h1>
+			<ThemeToggle />
+		</div>
 		<p class="tagline">Standard Svelte. Real CSS. Terminal and browser.</p>
 	</header>
 
@@ -138,6 +159,14 @@
 		margin-bottom: 3rem;
 	}
 
+	.header-row {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+	}
+
+	.header-row > div { width: 36px; }
+
 	h1 {
 		font-size: 3rem;
 		font-weight: 300;
@@ -147,7 +176,7 @@
 
 	.tagline {
 		font-size: 1.25rem;
-		color: #888;
+		color: var(--color-text-muted);
 		margin-top: 0.5rem;
 	}
 
@@ -160,7 +189,7 @@
 
 	.reason {
 		padding: 1.5rem;
-		border: 1px solid #333;
+		border: 1px solid var(--color-border);
 		border-radius: 8px;
 	}
 
@@ -171,13 +200,13 @@
 
 	.reason p {
 		margin: 0;
-		color: #aaa;
+		color: var(--color-text-light);
 		font-size: 0.95rem;
 		line-height: 1.5;
 	}
 
 	code {
-		background: #1a1a2e;
+		background: var(--color-bg-secondary);
 		padding: 0.15em 0.4em;
 		border-radius: 3px;
 		font-size: 0.9em;

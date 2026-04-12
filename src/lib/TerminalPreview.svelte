@@ -2,6 +2,7 @@
     import { onMount } from 'svelte';
     import { Terminal } from '@svelterm/vt100';
     import { TerminalRenderer } from '@svelterm/vt100/dom';
+    import { theme } from './theme.svelte.js';
 
     let {
         terminalJs = '',
@@ -27,6 +28,7 @@
     let cleanup: (() => void) | null = null
     let currentIO: any = null
     let sveltermRuntime: any = $state(null)
+
 
     function recalculateSize() {
         if (!container || !terminal || !renderer || !computedCharWidth) return
@@ -104,6 +106,9 @@
         computedCharWidth = charW
 
         terminal = new Terminal(cols, rows)
+        terminal.onResponse = (data: string) => {
+            if (currentIO) currentIO.feedInput(data)
+        }
         renderer = new TerminalRenderer(container, terminal, {
             fontSize,
             lineHeight: 1.3,
@@ -147,6 +152,27 @@
         const z = zoom
         if (!container || !terminal || !renderer) return
         recalculateSize()
+    })
+
+
+    $effect(() => {
+        // Update terminal colors when theme changes — affects both the OSC 11
+        // response (for svelterm's prefers-color-scheme) and the visual rendering
+        const m = theme.mode
+        if (!terminal || !renderer || !container) return
+        const light = m === 'light' || (m === 'auto' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: light)').matches)
+        const fg = light ? '#1a1a2e' : '#c9d1d9'
+        const bg = light ? '#ffffff' : '#0d1117'
+        terminal.backgroundColor = bg
+        renderer.dispose()
+        renderer = new TerminalRenderer(container, terminal, {
+            fontSize: computedFontSize,
+            lineHeight: 1.3,
+            foreground: fg,
+            background: bg,
+            fontFamily,
+        })
+        renderer.render()
     })
 
     $effect(() => {

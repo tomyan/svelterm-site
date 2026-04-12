@@ -1,6 +1,7 @@
 <script lang="ts">
     import { onMount } from 'svelte'
     import { compileComponent } from './compiler.js'
+    import { theme } from './theme.svelte.js'
 
     let { source = '' } = $props()
     let iframe: HTMLIFrameElement
@@ -85,10 +86,12 @@
         // Use an array join to avoid template literal issues with script tags
         const parts = [
             '<!doctype html><html><head><style>',
+            ':root { color-scheme: dark; --fg: #e6edf3; --bg: #0d1117; --border: #555; --border-form: #30363d; }',
+            '@media (prefers-color-scheme: light) { :root { color-scheme: light; --fg: #1a1a2e; --bg: #ffffff; --border: #999; --border-form: #d0d7de; } }',
             '* { margin: 0; padding: 0; box-sizing: border-box; }',
-            'body { font-family: system-ui, -apple-system, sans-serif; padding: 1rem; color: #e6edf3; background: #0d1117; }',
-            'button { cursor: pointer; padding: 0.25rem 0.75rem; background: transparent; color: inherit; border: 1px solid #555; border-radius: 4px; }',
-            'input, textarea { font-family: inherit; padding: 0.25rem; background: #0d1117; color: #e6edf3; border: 1px solid #30363d; border-radius: 4px; }',
+            'body { font-family: system-ui, -apple-system, sans-serif; padding: 1rem; color: var(--fg); background: var(--bg); }',
+            'button { cursor: pointer; padding: 0.25rem 0.75rem; background: transparent; color: inherit; border: 1px solid var(--border); border-radius: 4px; }',
+            'input, textarea { font-family: inherit; padding: 0.25rem; background: var(--bg); color: var(--fg); border: 1px solid var(--border-form); border-radius: 4px; }',
             '',
             '</style></head><body><div id="app"></div>',
             '<script type="module">',
@@ -116,6 +119,19 @@
         ]
         return parts.join('\n')
     }
+
+    $effect(() => {
+        const m = theme.mode
+        if (!iframe?.contentDocument) return
+        const root = iframe.contentDocument.documentElement
+        if (m === 'dark') {
+            root.style.colorScheme = 'dark'
+        } else if (m === 'light') {
+            root.style.colorScheme = 'light'
+        } else {
+            root.style.colorScheme = ''
+        }
+    })
 
     onMount(async () => {
         const [svelteModule, internalModule, discloseModule, flagsModule] = await Promise.all([
@@ -163,15 +179,15 @@
         flex: 1;
         width: 100%;
         border: none;
-        background: white;
+        background: var(--color-bg);
     }
 
     .error {
         padding: 0.5rem 1rem;
-        color: #ff6b6b;
+        color: var(--color-error);
         font-family: monospace;
         font-size: 0.8rem;
         white-space: pre-wrap;
-        background: #1a0000;
+        background: var(--color-error-bg);
     }
 </style>
