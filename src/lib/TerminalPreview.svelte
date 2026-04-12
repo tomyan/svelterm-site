@@ -4,16 +4,18 @@
     import { TerminalRenderer } from '@svelterm/vt100/dom';
 
     let {
-        rows = 15,
         terminalJs = '',
         terminalCss = '',
+        onResize = undefined as ((cols: number, rows: number) => void) | undefined,
     }: {
-        rows?: number
         terminalJs?: string
         terminalCss?: string
+        onResize?: (cols: number, rows: number) => void
     } = $props()
 
-    let cols = 40 // will be recalculated on mount
+    let cols = 40
+    let rows = 15
+    let computedFontSize = 13
 
     let container: HTMLElement
     let terminal: Terminal
@@ -59,7 +61,10 @@
 
         // Recalculate cols with adjusted font size
         cols = Math.floor(containerWidth / charW)
+        computedFontSize = fontSize
         lineHeight = fontSize * 1.3
+
+        const computedCharWidth = charW
 
         terminal = new Terminal(cols, rows)
         renderer = new TerminalRenderer(container, terminal, {
@@ -69,6 +74,35 @@
             background: '#0d1117',
             fontFamily,
         })
+
+        onResize?.(cols, rows)
+
+        // Watch for container resize and update terminal cols
+        const resizeObserver = new ResizeObserver(() => {
+            const newWidth = container.clientWidth - 8
+            const newHeight = container.clientHeight - 8
+            const newCols = Math.max(10, Math.floor(newWidth / computedCharWidth))
+            const newRows = Math.max(5, Math.floor(newHeight / lineHeight))
+            if (newCols !== cols || newRows !== rows) {
+                cols = newCols
+                rows = newRows
+                terminal.resize(cols, rows)
+                if (currentIO) {
+                    currentIO.setSize(cols, rows)
+                }
+                renderer.dispose()
+                renderer = new TerminalRenderer(container, terminal, {
+                    fontSize: computedFontSize,
+                    lineHeight: 1.3,
+                    foreground: '#c9d1d9',
+                    background: '#0d1117',
+                    fontFamily,
+                })
+                renderer.render()
+                onResize?.(cols, rows)
+            }
+        })
+        resizeObserver.observe(container)
 
         // Load svelterm and svelte fork runtime via .js file
         // to avoid svelte/internal import ban in .svelte files
@@ -88,6 +122,7 @@
         }
 
         return () => {
+            resizeObserver.disconnect()
             if (cleanup) cleanup()
             renderer.dispose()
         }

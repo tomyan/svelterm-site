@@ -11,6 +11,21 @@
         display: flex;
         flex-direction: column;
         color: #e8e8e8;
+
+        @media (display-mode: browser) {
+            gap: 0.75rem;
+            padding: 1.5rem;
+            font-family: system-ui, sans-serif;
+            border: 2px solid #48cae4;
+            border-radius: 8px;
+        }
+
+        @media (display-mode: terminal) {
+            gap: 1cell;
+            padding: 1cell;
+            border: rounded;
+            border-color: #48cae4;
+        }
     }
 
     .title { color: #48cae4; font-weight: bold; }
@@ -19,6 +34,19 @@
     button {
         color: #e8e8e8;
         border-color: #555;
+
+        @media (display-mode: browser) {
+            border: 1px solid #555;
+            border-radius: 4px;
+            padding: 0.4rem 1.2rem;
+            cursor: pointer;
+            font-size: inherit;
+        }
+
+        @media (display-mode: terminal) {
+            border: single;
+            padding: 0 2cell;
+        }
     }
 
     button:focus {
@@ -30,39 +58,6 @@
     button:hover {
         border-color: #48cae4;
         color: #48cae4;
-    }
-
-    @media (display-mode: browser) {
-        .counter {
-            gap: 0.75rem;
-            padding: 1.5rem;
-            font-family: system-ui, sans-serif;
-            border: 2px solid #48cae4;
-            border-radius: 8px;
-        }
-
-        button {
-            border: 1px solid #555;
-            border-radius: 4px;
-            padding: 0.4rem 1.2rem;
-            cursor: pointer;
-            font-size: inherit;
-        }
-
-    }
-
-    @media (display-mode: terminal) {
-        .counter {
-            gap: 1cell;
-            padding: 1cell;
-            border: rounded;
-            border-color: #48cae4;
-        }
-
-        button {
-            border: single;
-            padding: 0 2cell;
-        }
     }
 </style>
 
@@ -132,7 +127,7 @@
 
 <style>
 	main {
-		max-width: 960px;
+		max-width: 1400px;
 		margin: 0 auto;
 		padding: 2rem;
 	}
