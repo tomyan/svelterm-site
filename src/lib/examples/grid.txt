@@ -1,0 +1,68 @@
+<div class="grid">
+    <div class="cell a">1fr</div>
+    <div class="cell b">2fr</div>
+    <div class="cell c">1fr</div>
+    <div class="cell d">span 2</div>
+    <div class="cell e">1fr</div>
+    <div class="cell f">1fr</div>
+</div>
+
+<style>
+    :root {
+        --fg: #e8e8e8;
+        --accent: #48cae4;
+        --cell-bg: #1e3a5f;
+        --cell-border: #48cae4;
+    }
+
+    @media (prefers-color-scheme: light) {
+        :root {
+            --fg: #1a1a2e;
+            --accent: #0891b2;
+            --cell-bg: #e0f2fe;
+            --cell-border: #0891b2;
+        }
+    }
+
+    .grid {
+        display: grid;
+        grid-template-columns: 1fr 2fr 1fr;
+        color: var(--fg);
+
+        @media (display-mode: browser) {
+            gap: 0.5rem;
+            padding: 1rem;
+            font-family: system-ui, sans-serif;
+        }
+
+        @media (display-mode: terminal) {
+            gap: 1cell;
+            padding: 1cell;
+        }
+    }
+
+    .cell {
+        background: var(--cell-bg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        color: var(--accent);
+
+        @media (display-mode: browser) {
+            padding: 1.5rem;
+            border: 1px solid var(--cell-border);
+            border-radius: 4px;
+        }
+
+        @media (display-mode: terminal) {
+            padding: 1cell 2cell;
+            border: single;
+            border-color: var(--cell-border);
+        }
+    }
+
+    .d {
+        grid-column: span 2;
+    }
+</style>

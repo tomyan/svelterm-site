@@ -105,6 +105,15 @@
 			extensions: buildExtensions(light),
 		}))
 	})
+
+	$effect(() => {
+		// Update editor content when code prop changes externally
+		const c = code
+		if (!view || view.state.doc.toString() === c) return
+		view.dispatch({
+			changes: { from: 0, to: view.state.doc.length, insert: c },
+		})
+	})
 </script>
 
 <div class="editor-container" bind:this={container}></div>

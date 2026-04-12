@@ -5,8 +5,23 @@
 	import { compileComponent } from './compiler.js';
 	import { onMount } from 'svelte';
 
-	let { code } = $props();
-	let editableCode = $state(code);
+	import type { Example } from './examples/index.js';
+	let { examples }: { examples: Example[] } = $props();
+	let activeIndex = $state(0);
+	let editedCodes: (string | null)[] = $state(examples.map(() => null));
+	let editableCode = $state(examples[0].code);
+	let sidebarOpen = $state(false);
+
+	function isModified(index: number): boolean {
+		return editedCodes[index] !== null && editedCodes[index] !== examples[index].code;
+	}
+
+	function resetExample(index: number) {
+		editedCodes[index] = null;
+		if (index === activeIndex) {
+			editableCode = examples[index].code;
+		}
+	}
 	let terminalJs = $state('');
 	let terminalCss = $state('');
 	let debounceTimer: ReturnType<typeof setTimeout>;
@@ -27,6 +42,8 @@
 	$effect(() => {
 		const src = editableCode;
 		if (!src) return;
+		// Track edits per example
+		editedCodes[activeIndex] = src;
 		clearTimeout(debounceTimer);
 		debounceTimer = setTimeout(() => {
 			compileAndUpdate(src);
@@ -92,6 +109,15 @@
 		dragging = null;
 	}
 
+	function selectExample(index: number) {
+		// Save current edits
+		editedCodes[activeIndex] = editableCode;
+		// Switch
+		activeIndex = index;
+		editableCode = editedCodes[index] ?? examples[index].code;
+		sidebarOpen = false;
+	}
+
 	$effect(() => {
 		splitRatio; zoom; playgroundHeight;
 		// Use tick to ensure DOM has updated before measuring
@@ -108,9 +134,38 @@
 	onpointerup={onPointerUp}
 >
 	<div class="editor">
-		<div class="panel-header">Component</div>
-		<div class="editor-body">
-			<CodeEditor bind:code={editableCode} />
+		<div class="panel-header">
+			<button class="sidebar-toggle" onclick={() => sidebarOpen = !sidebarOpen} title="Examples">
+				<svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14">
+					<path d="M1 2.5A1.5 1.5 0 0 1 2.5 1h3A1.5 1.5 0 0 1 7 2.5v3A1.5 1.5 0 0 1 5.5 7h-3A1.5 1.5 0 0 1 1 5.5v-3zm8 0A1.5 1.5 0 0 1 10.5 1h3A1.5 1.5 0 0 1 15 2.5v3A1.5 1.5 0 0 1 13.5 7h-3A1.5 1.5 0 0 1 9 5.5v-3zm-8 8A1.5 1.5 0 0 1 2.5 9h3A1.5 1.5 0 0 1 7 10.5v3A1.5 1.5 0 0 1 5.5 15h-3A1.5 1.5 0 0 1 1 13.5v-3zm8 0A1.5 1.5 0 0 1 10.5 9h3a1.5 1.5 0 0 1 1.5 1.5v3a1.5 1.5 0 0 1-1.5 1.5h-3A1.5 1.5 0 0 1 9 13.5v-3z"/>
+				</svg>
+			</button>
+			<span class="example-name">{examples[activeIndex].name}{#if isModified(activeIndex)}<span class="modified">*</span>{/if}</span>
+		</div>
+		<div class="editor-area">
+			{#if sidebarOpen}
+				<div class="sidebar">
+					<div class="sidebar-label">Examples</div>
+					{#each examples as example, i}
+						<div class="sidebar-item" class:active={i === activeIndex}>
+							<button class="sidebar-item-name" onclick={() => selectExample(i)}>
+								{example.name}{#if isModified(i)}<span class="modified">*</span>{/if}
+							</button>
+							{#if isModified(i)}
+								<button class="sidebar-reset" onclick={() => resetExample(i)} title="Reset to original">
+									<svg viewBox="0 0 16 16" fill="currentColor" width="12" height="12">
+										<path d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 1 1 .908-.418A6 6 0 1 1 8 2v1z"/>
+										<path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966a.25.25 0 0 1 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
+									</svg>
+								</button>
+							{/if}
+						</div>
+					{/each}
+				</div>
+			{/if}
+			<div class="editor-body">
+				<CodeEditor bind:code={editableCode} />
+			</div>
 		</div>
 	</div>
 
@@ -176,9 +231,16 @@
 		border-right: 1px solid var(--color-border);
 	}
 
+	.editor-area {
+		flex: 1;
+		display: flex;
+		min-height: 0;
+	}
+
 	.editor-body {
 		flex: 1;
 		min-height: 0;
+		min-width: 0;
 		background: var(--color-bg);
 	}
 
@@ -219,6 +281,104 @@
 		justify-content: space-between;
 		align-items: center;
 		flex-shrink: 0;
+	}
+
+	.sidebar-toggle {
+		background: none;
+		border: none;
+		color: var(--color-text-muted);
+		cursor: pointer;
+		padding: 0.15rem;
+		display: flex;
+		align-items: center;
+		border-radius: 3px;
+		transition: color 0.15s;
+	}
+
+	.sidebar-toggle:hover {
+		color: var(--color-text);
+	}
+
+	.example-name {
+		font-size: 0.75rem;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+	}
+
+	.sidebar {
+		width: 140px;
+		flex-shrink: 0;
+		background: var(--color-bg-secondary);
+		border-right: 1px solid var(--color-border);
+		overflow-y: auto;
+		display: flex;
+		flex-direction: column;
+		padding: 0.25rem 0;
+	}
+
+	.sidebar-label {
+		font-size: 0.65rem;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		color: var(--color-text-muted);
+		padding: 0.4rem 0.75rem 0.2rem;
+	}
+
+	.sidebar-item {
+		display: flex;
+		align-items: center;
+		transition: background 0.1s;
+	}
+
+	.sidebar-item:hover {
+		background: var(--color-bg-tertiary);
+	}
+
+	.sidebar-item.active {
+		background: var(--color-bg-tertiary);
+	}
+
+	.sidebar-item-name {
+		flex: 1;
+		background: none;
+		border: none;
+		color: var(--color-text-muted);
+		font-size: 0.8rem;
+		padding: 0.4rem 0.75rem;
+		cursor: pointer;
+		text-align: left;
+		text-transform: capitalize;
+		transition: color 0.1s;
+	}
+
+	.sidebar-item:hover .sidebar-item-name {
+		color: var(--color-text);
+	}
+
+	.sidebar-item.active .sidebar-item-name {
+		color: var(--color-accent);
+	}
+
+	.modified {
+		color: var(--color-accent-warm);
+		margin-left: 0.15em;
+	}
+
+	.sidebar-reset {
+		background: none;
+		border: none;
+		color: var(--color-text-muted);
+		cursor: pointer;
+		padding: 0.25rem 0.5rem;
+		display: flex;
+		align-items: center;
+		opacity: 0.6;
+		transition: opacity 0.1s, color 0.1s;
+	}
+
+	.sidebar-reset:hover {
+		opacity: 1;
+		color: var(--color-accent);
 	}
 
 	.size-indicator {
