@@ -74,7 +74,7 @@
         onResize?.(newCols, visibleRows)
     }
 
-    onMount(async () => {
+    onMount(() => {
         // Calculate optimal columns and font size to fill the container width
         const containerWidth = container.clientWidth - 8 // minus padding
         // fontFamily is defined at module level
@@ -138,6 +138,16 @@
 
         // Load svelterm and svelte fork runtime via .js file
         // to avoid svelte/internal import ban in .svelte files
+        loadRuntime()
+
+        return () => {
+            resizeObserver.disconnect()
+            if (cleanup) cleanup()
+            renderer.dispose()
+        }
+    })
+
+    async function loadRuntime() {
         try {
             const runtime = await import('./svelterm-runtime.js')
             sveltermRuntime = {
@@ -152,13 +162,7 @@
         } catch (e) {
             console.error('Failed to load svelterm runtime:', e)
         }
-
-        return () => {
-            resizeObserver.disconnect()
-            if (cleanup) cleanup()
-            renderer.dispose()
-        }
-    })
+    }
 
     $effect(() => {
         // Recalculate terminal size when zoom changes
@@ -316,11 +320,22 @@
         currentIO.feedInput(`\x1b[<${e.button === 0 ? 0 : 2};${col + 1};${row + 1}m`)
     }
 
+    let scrollAccumulator = 0
+
     function handleWheel(e: WheelEvent) {
         if (!currentIO) return
         e.preventDefault()
         const { col, row } = pixelToCell(e.clientX, e.clientY)
-        currentIO.feedInput(`\x1b[<${e.deltaY < 0 ? 64 : 65};${col + 1};${row + 1}M`)
+        scrollAccumulator += e.deltaY / lineHeight
+        const lines = Math.trunc(scrollAccumulator)
+        if (lines !== 0) {
+            scrollAccumulator -= lines
+            const button = lines < 0 ? 64 : 65
+            const count = Math.min(Math.abs(lines), 5)
+            for (let i = 0; i < count; i++) {
+                currentIO.feedInput(`\x1b[<${button};${col + 1};${row + 1}M`)
+            }
+        }
     }
 
     function handleKeyDown(e: KeyboardEvent) {

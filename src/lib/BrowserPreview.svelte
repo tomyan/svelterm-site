@@ -51,11 +51,11 @@
     function rewriteCssInJs(js: string): string {
         // The compiled JS has a $$css = { code: '...css...' } object.
         // The CSS string uses \n for newlines and is single-quoted.
-        // Rewrite to unwrap @media (display-mode: screen) and strip terminal.
+        // Rewrite to unwrap @media (display-mode: browser) and strip terminal.
         return js.replace(/(code:\s*')([\s\S]*?)(')/g, (_match, pre, css, post) => {
             let result = css
-            // Unwrap screen media queries (content between { and } may contain nested braces from selectors)
-            result = result.replace(/@media\s*\(display-mode:\s*screen\)\s*\{((?:[^{}]|\{[^{}]*\})*)\s*\}/g, '$1')
+            // Unwrap browser media queries (content between { and } may contain nested braces from selectors)
+            result = result.replace(/@media\s*\(display-mode:\s*browser\)\s*\{((?:[^{}]|\{[^{}]*\})*)\s*\}/g, '$1')
             // Strip terminal media queries
             result = result.replace(/@media\s*\(display-mode:\s*terminal\)\s*\{(?:[^{}]|\{[^{}]*\})*\}/g, '')
             return pre + result + post
@@ -133,7 +133,14 @@
         }
     })
 
-    onMount(async () => {
+    onMount(() => {
+        loadModules()
+        return () => {
+            clearTimeout(debounceTimer)
+        }
+    })
+
+    async function loadModules() {
         const [svelteModule, internalModule, discloseModule, flagsModule] = await Promise.all([
             import('svelte'),
             import(/* @vite-ignore */ 'svelte/internal/client'),
@@ -149,11 +156,7 @@
         };
 
         ready = true
-
-        return () => {
-            clearTimeout(debounceTimer)
-        }
-    })
+    }
 </script>
 
 <div class="browser-preview">
@@ -178,6 +181,7 @@
     iframe {
         flex: 1;
         width: 100%;
+        min-height: 0;
         border: none;
         background: var(--color-bg);
     }

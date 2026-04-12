@@ -33,6 +33,8 @@
 	let container: HTMLElement;
 	let previewWidth = $state(0);
 	let previewHeight = $state(0);
+	let terminalPanelHeight = $state(0);
+	let terminalPanel: HTMLElement;
 	let browserPanel: HTMLElement;
 	let browserScreen: HTMLElement;
 	let termCols = $state(0);
@@ -54,22 +56,22 @@
 		updatePreviewDimensions();
 		const observer = new ResizeObserver(() => updatePreviewDimensions());
 		observer.observe(container);
-		if (browserScreen) observer.observe(browserScreen);
+		if (terminalPanel) observer.observe(terminalPanel);
+		if (browserPanel) observer.observe(browserPanel);
 		return () => observer.disconnect();
 	});
+
+	function panelContentHeight(panel: HTMLElement | undefined): number {
+		if (!panel) return 0;
+		const header = panel.querySelector('.panel-header');
+		return panel.clientHeight - (header ? header.clientHeight : 0);
+	}
 
 	function updatePreviewDimensions() {
 		if (!container) return;
 		previewWidth = container.clientWidth * (1 - splitRatio) - 9;
-		if (browserScreen?.parentElement) {
-			// Use the panel's content area height (excluding header).
-			// The preview-screen is scaled by CSS transform, so its clientHeight
-			// is clamped by flex layout. The parent panel's height minus the header
-			// gives the actual pixel area, and the template divides by zoom.
-			const header = browserScreen.parentElement.querySelector('.panel-header');
-			const headerH = header ? header.clientHeight : 0;
-			previewHeight = browserScreen.parentElement.clientHeight - headerH;
-		}
+		previewHeight = panelContentHeight(browserPanel);
+		terminalPanelHeight = panelContentHeight(terminalPanel);
 	}
 
 	async function compileAndUpdate(src: string) {
@@ -172,15 +174,16 @@
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div class="divider-v" style="left: calc({splitRatio * 100}% - 3px);" onpointerdown={startDragSplit}></div>
 
-	<div class="previews">
-		<div class="preview-panel">
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div class="previews" onwheel={(e) => e.stopPropagation()}>
+		<div class="preview-panel" bind:this={terminalPanel}>
 			<div class="panel-header">
 				Terminal
 				{#if termCols > 0}
 					<span class="size-indicator">{termCols} × {termRows} cells</span>
 				{/if}
 			</div>
-			<div class="preview-screen" style="transform: scale({zoom}); transform-origin: top left; width: {100/zoom}%; height: {100/zoom}%;">
+			<div class="preview-screen" style="transform: scale({zoom}); transform-origin: top left; width: {100/zoom}%; height: {terminalPanelHeight/zoom}px;">
 				<TerminalPreview {terminalJs} {terminalCss} {zoom} onResize={(c, r) => { termCols = c; termRows = r; }} />
 			</div>
 		</div>
@@ -192,7 +195,7 @@
 					<span class="size-indicator">{Math.floor(previewWidth / zoom)} × {Math.floor(previewHeight / zoom)}px</span>
 				{/if}
 			</div>
-			<div class="preview-screen" bind:this={browserScreen} style="transform: scale({zoom}); transform-origin: top left; width: {100/zoom}%; height: {100/zoom}%;">
+			<div class="preview-screen" bind:this={browserScreen} style="transform: scale({zoom}); transform-origin: top left; width: {100/zoom}%; height: {previewHeight/zoom}px;">
 				<BrowserPreview source={editableCode} />
 			</div>
 		</div>
@@ -264,7 +267,7 @@
 	}
 
 	.preview-screen {
-		flex: 1;
+		flex: 0 0 auto;
 		min-height: 0;
 		overflow: hidden;
 		background: var(--color-bg);
