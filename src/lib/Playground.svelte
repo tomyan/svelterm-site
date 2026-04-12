@@ -3,15 +3,18 @@
 	import TerminalPreview from './TerminalPreview.svelte';
 	import BrowserPreview from './BrowserPreview.svelte';
 	import { compileComponent } from './compiler.js';
+	import { onMount } from 'svelte';
 
-	let { code: initialCode } = $props();
-	let editableCode = $state(initialCode);
+	let { code } = $props();
+	let editableCode = $state(code);
 	let terminalJs = $state('');
 	let terminalCss = $state('');
 	let debounceTimer: ReturnType<typeof setTimeout>;
 
 	$effect(() => {
 		const src = editableCode;
+		console.error('[playground] $effect fired, src length:', src?.length ?? 0);
+		if (!src) return;
 		clearTimeout(debounceTimer);
 		debounceTimer = setTimeout(() => {
 			compileAndUpdate(src);
@@ -20,8 +23,26 @@
 
 	async function compileAndUpdate(src: string) {
 		if (!src.trim()) return;
+		// Debug marker
+		if (typeof window !== 'undefined') {
+			(window as any).__playgroundCompiled = (window as any).__playgroundCompiled || [];
+		}
 		try {
 			const result = await compileComponent(src);
+			if (typeof window !== 'undefined') {
+				(window as any).__playgroundCompiled.push({
+					hasBrowser: !!result.browser,
+					hasTerminal: !!result.terminal,
+					terminalError: (result as any).terminalError,
+					error: result.error,
+				});
+			}
+			console.log('[playground] compile result:', {
+				hasBrowser: !!result.browser,
+				hasTerminal: !!result.terminal,
+				terminalError: (result as any).terminalError,
+				error: result.error,
+			});
 			if (result.terminal) {
 				terminalJs = result.terminal.js;
 				terminalCss = result.terminal.css;

@@ -10,64 +10,65 @@
     .counter {
         display: flex;
         flex-direction: column;
-        border: rounded;
-        border-color: cyan;
-        padding: 1cell;
-        gap: 1cell;
+        color: #e8e8e8;
     }
 
-    .value {
-        color: yellow;
-        font-weight: bold;
-    }
+    .title { color: #48cae4; font-weight: bold; }
+    .value { color: #fbbf24; font-weight: bold; }
 
     button {
-        border: single;
-        border-color: gray;
-        padding: 0 2cell;
+        color: #e8e8e8;
+        border-color: #555;
     }
 
     button:focus {
-        border-color: yellow;
-        color: yellow;
+        border-color: #fbbf24;
+        color: #fbbf24;
         font-weight: bold;
     }
 
-    @media (display-mode: terminal) {
-        .counter {
-            width: 30cell;
-        }
-
-        .value {
-            color: brightYellow;
-        }
+    button:hover {
+        border-color: #48cae4;
+        color: #48cae4;
     }
 
-    @media (display-mode: screen) {
+    @media (display-mode: browser) {
         .counter {
-            border: 2px solid #00b4d8;
+            gap: 0.75rem;
+            padding: 1.5rem;
+            font-family: system-ui, sans-serif;
+            border: 2px solid #48cae4;
             border-radius: 8px;
-            padding: 1rem;
-            gap: 0.5rem;
-            font-family: system-ui;
         }
 
         button {
             border: 1px solid #555;
             border-radius: 4px;
-            padding: 0.25rem 1rem;
+            padding: 0.4rem 1.2rem;
             cursor: pointer;
+            font-size: inherit;
         }
 
-        button:hover {
-            border-color: #00b4d8;
-            color: #00b4d8;
+    }
+
+    @media (display-mode: terminal) {
+        .counter {
+            gap: 1cell;
+            padding: 1cell;
+            border: rounded;
+            border-color: #48cae4;
+        }
+
+        button {
+            border: single;
+            padding: 0 2cell;
         }
     }
 </style>
 
 <div class="counter">
-    <span>Count: <span class="value">{count}</span></span>
+    <span class="title">Counter</span>
+    <span class="value">{count}</span>
     <button onclick={() => count++}>Increment</button>
     <button onclick={() => count--}>Decrement</button>
 </div>`;

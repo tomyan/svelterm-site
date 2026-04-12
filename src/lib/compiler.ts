@@ -18,6 +18,14 @@ function getWorker(): Worker {
                 entry.resolve(event.data)
             }
         }
+        worker.onerror = (event) => {
+            console.error('[compiler worker] Error:', event.message)
+            // Resolve all pending with error
+            for (const [id, entry] of pending) {
+                entry.resolve({ id, error: 'Worker error: ' + event.message })
+            }
+            pending.clear()
+        }
     }
     return worker
 }

@@ -4,62 +4,177 @@
     import { TerminalRenderer } from '@svelterm/vt100/dom';
 
     let {
-        cols = 40,
         rows = 15,
         terminalJs = '',
         terminalCss = '',
-        onInput = undefined as ((data: string) => void) | undefined,
     }: {
-        cols?: number
         rows?: number
         terminalJs?: string
         terminalCss?: string
-        onInput?: (data: string) => void
     } = $props()
+
+    let cols = 40 // will be recalculated on mount
 
     let container: HTMLElement
     let terminal: Terminal
     let renderer: TerminalRenderer
-    let charWidth = 0
-    let lineHeight = 0
+    let cleanup: (() => void) | null = null
+    let currentIO: any = null
+    let sveltermRuntime: any = $state(null)
 
-    onMount(() => {
+    onMount(async () => {
+        // Calculate optimal columns and font size to fill the container width
+        const containerWidth = container.clientWidth - 8 // minus padding
+        const fontFamily = "'SF Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace"
+        const minFontSize = 11
+        const maxFontSize = 16
+        const targetFontSize = 13
+
+        // Measure character width at target font size
+        function measureCharWidth(fontSize: number): number {
+            const span = document.createElement('span')
+            span.style.fontFamily = fontFamily
+            span.style.fontSize = `${fontSize}px`
+            span.style.position = 'absolute'
+            span.style.visibility = 'hidden'
+            span.style.whiteSpace = 'pre'
+            span.textContent = 'M'
+            document.body.appendChild(span)
+            const w = span.getBoundingClientRect().width
+            document.body.removeChild(span)
+            return w
+        }
+
+        // Start with target font size, calculate columns
+        let fontSize = targetFontSize
+        let charW = measureCharWidth(fontSize)
+        cols = Math.floor(containerWidth / charW)
+
+        // Fine-tune font size to fill width more exactly
+        const targetWidth = containerWidth
+        const currentWidth = cols * charW
+        const ratio = targetWidth / currentWidth
+        fontSize = Math.min(maxFontSize, Math.max(minFontSize, fontSize * ratio))
+        charW = measureCharWidth(fontSize)
+
+        // Recalculate cols with adjusted font size
+        cols = Math.floor(containerWidth / charW)
+        lineHeight = fontSize * 1.3
+
         terminal = new Terminal(cols, rows)
         renderer = new TerminalRenderer(container, terminal, {
-            fontSize: 13,
+            fontSize,
             lineHeight: 1.3,
             foreground: '#c9d1d9',
             background: '#0d1117',
-            fontFamily: "'SF Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace",
+            fontFamily,
         })
 
-        measureChar()
+        // Load svelterm and svelte fork runtime via .js file
+        // to avoid svelte/internal import ban in .svelte files
+        try {
+            const runtime = await import('./svelterm-runtime.js')
+            sveltermRuntime = {
+                run: runtime.run,
+                InProcessIO: runtime.InProcessIO,
+            }
 
-        return () => renderer.dispose()
+            ;(window as any).__svelterm_terminal_modules__ = {
+                internal: runtime.svelteInternal,
+                renderer: { default: runtime.sveltermRenderer },
+            }
+        } catch (e) {
+            console.error('Failed to load svelterm runtime:', e)
+        }
+
+        return () => {
+            if (cleanup) cleanup()
+            renderer.dispose()
+        }
     })
 
-    // When terminal JS changes, re-run the component
     $effect(() => {
-        if (!terminal || !renderer) return
+        if (!sveltermRuntime || !terminal || !renderer) return
         const js = terminalJs
         const css = terminalCss
         if (!js) return
 
+        mountTerminalComponent(js, css)
+    })
+
+    async function mountTerminalComponent(js: string, css: string) {
+        // Unmount previous
+        if (cleanup) {
+            try { cleanup() } catch {}
+            cleanup = null
+        }
+
         // Clear terminal
         terminal.write('\x1b[2J\x1b[H')
 
-        // TODO: evaluate the compiled JS, run svelterm with InProcessIO,
-        // connect output to terminal.write(), render
-        // For now, show a message
-        terminal.write('\x1b[36mTerminal preview loading...\x1b[0m\r\n')
-        terminal.write(`\x1b[90mJS: ${js.length} bytes, CSS: ${css.length} bytes\x1b[0m\r\n`)
+        try {
+            // Rewrite imports in the compiled JS
+            let code = js
+            // Strip side-effect imports
+            code = code.replace(/^import\s+['"]svelte[^'"]*['"];?\s*$/gm, '')
+            code = code.replace(/^import\s+['"]\@svelterm[^'"]*['"];?\s*$/gm, '')
+            // Rewrite: import * as $ from 'svelte/internal/client' → const $ = __internal__
+            code = code.replace(/import\s+\*\s+as\s+([\w$]+)\s+from\s+['"]svelte[^'"]*['"]/g,
+                'const $1 = __internal__')
+            // Rewrite: import { x } from 'svelte/...' → const { x } = __internal__
+            code = code.replace(/import\s+\{([^}]+)\}\s+from\s+['"]svelte\/[^'"]*['"]/g,
+                'const {$1} = __internal__')
+            code = code.replace(/import\s+\{([^}]+)\}\s+from\s+['"]svelte['"]/g,
+                'const {$1} = __internal__')
+            // Rewrite: import $renderer from '@svelterm/core' → const $renderer = __renderer__.default
+            code = code.replace(/import\s+([\w$]+)\s+from\s+['"]\@svelterm\/core['"]/g,
+                'const $1 = __renderer__.default')
 
-        renderer.render()
-    })
+            // Wrap with runtime references
+            const moduleCode = [
+                'const __internal__ = window.__svelterm_terminal_modules__.internal;',
+                'const __renderer__ = window.__svelterm_terminal_modules__.renderer;',
+                code,
+            ].join('\n')
 
-    export function write(data: string): void {
-        terminal?.write(data)
-        renderer?.render()
+            // Create blob module and import it
+            const blob = new Blob([moduleCode], { type: 'text/javascript' })
+            const url = URL.createObjectURL(blob)
+            const mod = await import(/* @vite-ignore */ url)
+            URL.revokeObjectURL(url)
+
+            const Component = mod.default
+            if (!Component) {
+                terminal.write('\x1b[31mNo default export found\x1b[0m\r\n')
+                renderer.render()
+                return
+            }
+
+            // Run svelterm with InProcessIO connected to the VT100 terminal
+            const { run, InProcessIO } = sveltermRuntime
+            const io = new InProcessIO(cols, rows)
+            io.onOutput = (data: string) => {
+                terminal.write(data)
+                renderer.scheduleRender()
+            }
+            currentIO = io
+
+            cleanup = run(Component, {
+                css,
+                fullscreen: false,
+                mouse: true,
+                io,
+            })
+
+            // Hide cursor — svelterm does this in fullscreen mode but we
+            // don't use fullscreen in the browser-embedded terminal
+            terminal.write('\x1b[?25l')
+            renderer.render()
+        } catch (e: any) {
+            terminal.write(`\x1b[31mError: ${e.message}\x1b[0m\r\n`)
+            renderer.render()
+            console.error('Terminal mount error:', e)
+        }
     }
 
     function measureChar() {
@@ -71,74 +186,73 @@
         span.style.whiteSpace = 'pre'
         span.textContent = 'M'
         document.body.appendChild(span)
-        charWidth = span.getBoundingClientRect().width
-        lineHeight = 13 * 1.3
+        const w = span.getBoundingClientRect().width
         document.body.removeChild(span)
+        return w
     }
 
+    let charWidth = 0
+    let lineHeight = 13 * 1.3
+
     function pixelToCell(clientX: number, clientY: number): { col: number; row: number } {
+        if (!charWidth) charWidth = measureChar()
         const rect = container.getBoundingClientRect()
-        const x = clientX - rect.left - 4
-        const y = clientY - rect.top - 4
         return {
-            col: Math.max(0, Math.min(cols - 1, Math.floor(x / charWidth))),
-            row: Math.max(0, Math.min(rows - 1, Math.floor(y / lineHeight))),
+            col: Math.max(0, Math.min(cols - 1, Math.floor((clientX - rect.left - 4) / charWidth))),
+            row: Math.max(0, Math.min(rows - 1, Math.floor((clientY - rect.top - 4) / lineHeight))),
         }
     }
 
-    function encodeSgrMouse(button: number, col: number, row: number, press: boolean): string {
-        return `\x1b[<${button};${col + 1};${row + 1}${press ? 'M' : 'm'}`
+    function handleMouseMove(e: globalThis.MouseEvent) {
+        if (!currentIO) return
+        const { col, row } = pixelToCell(e.clientX, e.clientY)
+        // Motion with button 32+0 (no button), or 35 for no button
+        const button = e.buttons ? 32 : 35
+        currentIO.feedInput(`\x1b[<${button};${col + 1};${row + 1}M`)
     }
 
     function handleMouseDown(e: globalThis.MouseEvent) {
-        if (!onInput) return
+        if (!currentIO) return
         const { col, row } = pixelToCell(e.clientX, e.clientY)
-        const button = e.button === 0 ? 0 : e.button === 1 ? 1 : 2
-        onInput(encodeSgrMouse(button, col, row, true))
+        currentIO.feedInput(`\x1b[<${e.button === 0 ? 0 : 2};${col + 1};${row + 1}M`)
     }
 
     function handleMouseUp(e: globalThis.MouseEvent) {
-        if (!onInput) return
+        if (!currentIO) return
         const { col, row } = pixelToCell(e.clientX, e.clientY)
-        const button = e.button === 0 ? 0 : e.button === 1 ? 1 : 2
-        onInput(encodeSgrMouse(button, col, row, false))
+        currentIO.feedInput(`\x1b[<${e.button === 0 ? 0 : 2};${col + 1};${row + 1}m`)
     }
 
     function handleWheel(e: WheelEvent) {
-        if (!onInput) return
+        if (!currentIO) return
         e.preventDefault()
         const { col, row } = pixelToCell(e.clientX, e.clientY)
-        const button = e.deltaY < 0 ? 64 : 65
-        onInput(encodeSgrMouse(button, col, row, true))
+        currentIO.feedInput(`\x1b[<${e.deltaY < 0 ? 64 : 65};${col + 1};${row + 1}M`)
     }
 
     function handleKeyDown(e: KeyboardEvent) {
-        if (!onInput) return
+        if (!currentIO) return
         e.preventDefault()
-        const seq = keyToAnsi(e)
-        if (seq) onInput(seq)
-    }
-
-    function keyToAnsi(e: KeyboardEvent): string | null {
+        let seq: string | null = null
         if (e.ctrlKey && e.key.length === 1) {
             const code = e.key.toLowerCase().charCodeAt(0) - 0x60
-            if (code >= 1 && code <= 26) return String.fromCharCode(code)
+            if (code >= 1 && code <= 26) seq = String.fromCharCode(code)
         }
-        switch (e.key) {
-            case 'Enter': return '\r'
-            case 'Backspace': return '\x7f'
-            case 'Tab': return e.shiftKey ? '\x1b[Z' : '\t'
-            case 'Escape': return '\x1b'
-            case 'ArrowUp': return '\x1b[A'
-            case 'ArrowDown': return '\x1b[B'
-            case 'ArrowRight': return '\x1b[C'
-            case 'ArrowLeft': return '\x1b[D'
-            case 'Home': return '\x1b[H'
-            case 'End': return '\x1b[F'
-            case 'Delete': return '\x1b[3~'
+        if (!seq) {
+            switch (e.key) {
+                case 'Enter': seq = '\r'; break
+                case 'Backspace': seq = '\x7f'; break
+                case 'Tab': seq = e.shiftKey ? '\x1b[Z' : '\t'; break
+                case 'Escape': seq = '\x1b'; break
+                case 'ArrowUp': seq = '\x1b[A'; break
+                case 'ArrowDown': seq = '\x1b[B'; break
+                case 'ArrowRight': seq = '\x1b[C'; break
+                case 'ArrowLeft': seq = '\x1b[D'; break
+                case 'Delete': seq = '\x1b[3~'; break
+            }
         }
-        if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) return e.key
-        return null
+        if (!seq && e.key.length === 1 && !e.ctrlKey && !e.metaKey) seq = e.key
+        if (seq) currentIO.feedInput(seq)
     }
 </script>
 
@@ -150,6 +264,7 @@
     role="application"
     onmousedown={handleMouseDown}
     onmouseup={handleMouseUp}
+    onmousemove={handleMouseMove}
     onwheel={handleWheel}
     onkeydown={handleKeyDown}
 ></div>

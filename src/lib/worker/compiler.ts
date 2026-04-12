@@ -4,7 +4,6 @@
  */
 
 import { compile } from 'svelte/compiler'
-import { compile as forkCompile } from 'svelte-fork-compiler'
 
 export interface CompileRequest {
     id: number
@@ -22,7 +21,7 @@ self.onmessage = (event: MessageEvent<CompileRequest>) => {
     const { id, source } = event.data
     const result: CompileResult = { id }
 
-    // Browser compilation — stock Svelte
+    // Browser compilation — standard client mode
     try {
         const browserResult = compile(source, {
             generate: 'client',
@@ -37,10 +36,10 @@ self.onmessage = (event: MessageEvent<CompileRequest>) => {
         result.error = e.message
     }
 
-    // Terminal compilation — fork with customRenderer
+    // Terminal compilation — client mode with custom renderer
     if (!result.error) {
         try {
-            const terminalResult = forkCompile(source, {
+            const terminalResult = compile(source, {
                 generate: 'client',
                 css: 'external',
                 filename: 'App.svelte',
@@ -53,8 +52,9 @@ self.onmessage = (event: MessageEvent<CompileRequest>) => {
                 css: terminalResult.css?.code ?? '',
             }
         } catch (e: any) {
-            // Terminal compilation may fail — don't block browser preview
+            // Include error info for debugging
             result.terminal = undefined
+            ;(result as any).terminalError = e.message
         }
     }
 
