@@ -6,6 +6,13 @@
     let count = $state(0)
 <\/script>
 
+<div class="counter">
+    <span class="title">Counter</span>
+    <span class="value">{count}</span>
+    <button onclick={() => count++}>Increment</button>
+    <button onclick={() => count--}>Decrement</button>
+</div>
+
 <style>
     .counter {
         display: flex;
@@ -59,14 +66,7 @@
         border-color: #48cae4;
         color: #48cae4;
     }
-</style>
-
-<div class="counter">
-    <span class="title">Counter</span>
-    <span class="value">{count}</span>
-    <button onclick={() => count++}>Increment</button>
-    <button onclick={() => count--}>Decrement</button>
-</div>`;
+</style>`;
 </script>
 
 <svelte:head>
