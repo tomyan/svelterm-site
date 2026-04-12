@@ -18,6 +18,8 @@
 	let container: HTMLElement;
 	let previewWidth = $state(0);
 	let previewHeight = $state(0);
+	let browserPanel: HTMLElement;
+	let browserScreen: HTMLElement;
 	let termCols = $state(0);
 	let termRows = $state(0);
 	let dragging = $state<'split' | 'height' | null>(null);
@@ -32,16 +34,25 @@
 	});
 
 	onMount(() => {
-		updatePreviewWidth();
-		const observer = new ResizeObserver(() => updatePreviewWidth());
+		updatePreviewDimensions();
+		const observer = new ResizeObserver(() => updatePreviewDimensions());
 		observer.observe(container);
+		if (browserScreen) observer.observe(browserScreen);
 		return () => observer.disconnect();
 	});
 
-	function updatePreviewWidth() {
+	function updatePreviewDimensions() {
 		if (!container) return;
-		previewWidth = Math.floor(container.clientWidth * (1 - splitRatio) - 9); // minus divider
-		previewHeight = Math.floor((playgroundHeight - 56) / 2); // minus headers, split between two
+		previewWidth = container.clientWidth * (1 - splitRatio) - 9;
+		if (browserScreen?.parentElement) {
+			// Use the panel's content area height (excluding header).
+			// The preview-screen is scaled by CSS transform, so its clientHeight
+			// is clamped by flex layout. The parent panel's height minus the header
+			// gives the actual pixel area, and the template divides by zoom.
+			const header = browserScreen.parentElement.querySelector('.panel-header');
+			const headerH = header ? header.clientHeight : 0;
+			previewHeight = browserScreen.parentElement.clientHeight - headerH;
+		}
 	}
 
 	async function compileAndUpdate(src: string) {
@@ -70,7 +81,7 @@
 		if (dragging === 'split') {
 			const rect = container.getBoundingClientRect();
 			splitRatio = Math.max(0.25, Math.min(0.65, (e.clientX - rect.left) / rect.width));
-			updatePreviewWidth();
+			updatePreviewDimensions();
 		} else if (dragging === 'height') {
 			const rect = container.getBoundingClientRect();
 			playgroundHeight = Math.max(300, Math.min(900, e.clientY - rect.top));
@@ -82,9 +93,9 @@
 	}
 
 	$effect(() => {
-		// Recalculate preview width when split or zoom changes
-		splitRatio; zoom;
-		updatePreviewWidth();
+		splitRatio; zoom; playgroundHeight;
+		// Use tick to ensure DOM has updated before measuring
+		requestAnimationFrame(() => updatePreviewDimensions());
 	});
 </script>
 
@@ -115,18 +126,18 @@
 				{/if}
 			</div>
 			<div class="preview-screen" style="transform: scale({zoom}); transform-origin: top left; width: {100/zoom}%; height: {100/zoom}%;">
-				<TerminalPreview {terminalJs} {terminalCss} onResize={(c, r) => { termCols = c; termRows = r; }} />
+				<TerminalPreview {terminalJs} {terminalCss} {zoom} onResize={(c, r) => { termCols = c; termRows = r; }} />
 			</div>
 		</div>
 
-		<div class="preview-panel">
+		<div class="preview-panel" bind:this={browserPanel}>
 			<div class="panel-header">
 				Browser
 				{#if previewWidth > 0}
-					<span class="size-indicator">{Math.floor(previewWidth * zoom)} × {Math.floor(previewHeight * zoom)}px</span>
+					<span class="size-indicator">{Math.floor(previewWidth / zoom)} × {Math.floor(previewHeight / zoom)}px</span>
 				{/if}
 			</div>
-			<div class="preview-screen" style="transform: scale({zoom}); transform-origin: top left; width: {100/zoom}%; height: {100/zoom}%;">
+			<div class="preview-screen" bind:this={browserScreen} style="transform: scale({zoom}); transform-origin: top left; width: {100/zoom}%; height: {100/zoom}%;">
 				<BrowserPreview source={editableCode} />
 			</div>
 		</div>

@@ -6,16 +6,20 @@
     let {
         terminalJs = '',
         terminalCss = '',
+        zoom = 1,
         onResize = undefined as ((cols: number, rows: number) => void) | undefined,
     }: {
         terminalJs?: string
         terminalCss?: string
+        zoom?: number
         onResize?: (cols: number, rows: number) => void
     } = $props()
 
     let cols = 40
     let rows = 15
     let computedFontSize = 13
+    let computedCharWidth = 0
+    const fontFamily = "'SF Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace"
 
     let container: HTMLElement
     let terminal: Terminal
@@ -24,10 +28,43 @@
     let currentIO: any = null
     let sveltermRuntime: any = $state(null)
 
+    function recalculateSize() {
+        if (!container || !terminal || !renderer || !computedCharWidth) return
+        // The preview-screen has width:{100/zoom}% and transform:scale(zoom).
+        // Width: the percentage resolves correctly (cross-axis in column flex),
+        //   so clientWidth reflects the content viewport.
+        // Width changes with zoom (fewer cols at higher zoom).
+        // Height: rows stay fixed — the terminal scrolls vertically.
+        const newWidth = container.clientWidth - 8
+        const newCols = Math.max(10, Math.floor(newWidth / computedCharWidth))
+        const newHeight = container.clientHeight - 8
+        const newRows = Math.max(5, Math.floor(newHeight / lineHeight))
+        // Visible rows in the viewport (fewer at higher zoom)
+        const visibleRows = Math.max(1, Math.floor(newHeight / (lineHeight * zoom)))
+        if (newCols !== cols || newRows !== rows) {
+            cols = newCols
+            rows = newRows
+            terminal.resize(cols, rows)
+            if (currentIO) {
+                currentIO.setSize(cols, rows)
+            }
+            renderer.dispose()
+            renderer = new TerminalRenderer(container, terminal, {
+                fontSize: computedFontSize,
+                lineHeight: 1.3,
+                foreground: '#c9d1d9',
+                background: '#0d1117',
+                fontFamily,
+            })
+            renderer.render()
+        }
+        onResize?.(newCols, visibleRows)
+    }
+
     onMount(async () => {
         // Calculate optimal columns and font size to fill the container width
         const containerWidth = container.clientWidth - 8 // minus padding
-        const fontFamily = "'SF Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace"
+        // fontFamily is defined at module level
         const minFontSize = 11
         const maxFontSize = 16
         const targetFontSize = 13
@@ -64,7 +101,7 @@
         computedFontSize = fontSize
         lineHeight = fontSize * 1.3
 
-        const computedCharWidth = charW
+        computedCharWidth = charW
 
         terminal = new Terminal(cols, rows)
         renderer = new TerminalRenderer(container, terminal, {
@@ -78,30 +115,7 @@
         onResize?.(cols, rows)
 
         // Watch for container resize and update terminal cols
-        const resizeObserver = new ResizeObserver(() => {
-            const newWidth = container.clientWidth - 8
-            const newHeight = container.clientHeight - 8
-            const newCols = Math.max(10, Math.floor(newWidth / computedCharWidth))
-            const newRows = Math.max(5, Math.floor(newHeight / lineHeight))
-            if (newCols !== cols || newRows !== rows) {
-                cols = newCols
-                rows = newRows
-                terminal.resize(cols, rows)
-                if (currentIO) {
-                    currentIO.setSize(cols, rows)
-                }
-                renderer.dispose()
-                renderer = new TerminalRenderer(container, terminal, {
-                    fontSize: computedFontSize,
-                    lineHeight: 1.3,
-                    foreground: '#c9d1d9',
-                    background: '#0d1117',
-                    fontFamily,
-                })
-                renderer.render()
-                onResize?.(cols, rows)
-            }
-        })
+        const resizeObserver = new ResizeObserver(() => recalculateSize())
         resizeObserver.observe(container)
 
         // Load svelterm and svelte fork runtime via .js file
@@ -126,6 +140,13 @@
             if (cleanup) cleanup()
             renderer.dispose()
         }
+    })
+
+    $effect(() => {
+        // Recalculate terminal size when zoom changes
+        const z = zoom
+        if (!container || !terminal || !renderer) return
+        recalculateSize()
     })
 
     $effect(() => {
