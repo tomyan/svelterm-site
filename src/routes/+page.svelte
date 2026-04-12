@@ -28,8 +28,9 @@
         }
 
         @media (display-mode: terminal) {
+            margin: 0 1cell;
             gap: 1cell;
-            padding: 1cell;
+            padding: 1cell 2cell 0 2cell;
             border: rounded;
             border-color: #48cae4;
         }
