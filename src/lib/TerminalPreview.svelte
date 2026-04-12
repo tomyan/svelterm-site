@@ -30,6 +30,16 @@
     let sveltermRuntime: any = $state(null)
 
 
+    function isLight(): boolean {
+        return theme.mode === 'light' || (theme.mode === 'auto' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: light)').matches)
+    }
+
+    function termColors() {
+        return isLight()
+            ? { foreground: '#1a1a2e', background: '#ffffff' }
+            : { foreground: '#c9d1d9', background: '#0d1117' }
+    }
+
     function recalculateSize() {
         if (!container || !terminal || !renderer || !computedCharWidth) return
         // The preview-screen has width:{100/zoom}% and transform:scale(zoom).
@@ -50,12 +60,13 @@
             if (currentIO) {
                 currentIO.setSize(cols, rows)
             }
+            const colors = termColors()
             renderer.dispose()
             renderer = new TerminalRenderer(container, terminal, {
                 fontSize: computedFontSize,
                 lineHeight: 1.3,
-                foreground: '#c9d1d9',
-                background: '#0d1117',
+                foreground: colors.foreground,
+                background: colors.background,
                 fontFamily,
             })
             renderer.render()
@@ -105,15 +116,17 @@
 
         computedCharWidth = charW
 
+        const initColors = termColors()
         terminal = new Terminal(cols, rows)
+        terminal.backgroundColor = initColors.background
         terminal.onResponse = (data: string) => {
             if (currentIO) currentIO.feedInput(data)
         }
         renderer = new TerminalRenderer(container, terminal, {
             fontSize,
             lineHeight: 1.3,
-            foreground: '#c9d1d9',
-            background: '#0d1117',
+            foreground: initColors.foreground,
+            background: initColors.background,
             fontFamily,
         })
 
@@ -160,16 +173,14 @@
         // response (for svelterm's prefers-color-scheme) and the visual rendering
         const m = theme.mode
         if (!terminal || !renderer || !container) return
-        const light = m === 'light' || (m === 'auto' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: light)').matches)
-        const fg = light ? '#1a1a2e' : '#c9d1d9'
-        const bg = light ? '#ffffff' : '#0d1117'
-        terminal.backgroundColor = bg
+        const colors = termColors()
+        terminal.backgroundColor = colors.background
         renderer.dispose()
         renderer = new TerminalRenderer(container, terminal, {
             fontSize: computedFontSize,
             lineHeight: 1.3,
-            foreground: fg,
-            background: bg,
+            foreground: colors.foreground,
+            background: colors.background,
             fontFamily,
         })
         renderer.render()
