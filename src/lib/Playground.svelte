@@ -2,23 +2,32 @@
 	import CodeEditor from './CodeEditor.svelte';
 	import TerminalPreview from './TerminalPreview.svelte';
 	import BrowserPreview from './BrowserPreview.svelte';
+	import { compileComponent } from './compiler.js';
 
 	let { code: initialCode } = $props();
 	let editableCode = $state(initialCode);
+	let terminalJs = $state('');
+	let terminalCss = $state('');
+	let debounceTimer: ReturnType<typeof setTimeout>;
 
-	// Static terminal rendering for now — will be replaced with live svelterm
-	const terminalDemo =
-		'\x1b[2J\x1b[H' +
-		'\x1b[36m╭─────────────────────────────╮\x1b[0m\r\n' +
-		'\x1b[36m│\x1b[0m Count: \x1b[1;33m0\x1b[0m                    \x1b[36m│\x1b[0m\r\n' +
-		'\x1b[36m│\x1b[0m                             \x1b[36m│\x1b[0m\r\n' +
-		'\x1b[36m│\x1b[0m \x1b[90m┌───────────┐\x1b[0m               \x1b[36m│\x1b[0m\r\n' +
-		'\x1b[36m│\x1b[0m \x1b[1;33m│\x1b[0m \x1b[1;33mIncrement\x1b[0m \x1b[1;33m│\x1b[0m               \x1b[36m│\x1b[0m\r\n' +
-		'\x1b[36m│\x1b[0m \x1b[90m└───────────┘\x1b[0m               \x1b[36m│\x1b[0m\r\n' +
-		'\x1b[36m│\x1b[0m \x1b[90m┌───────────┐\x1b[0m               \x1b[36m│\x1b[0m\r\n' +
-		'\x1b[36m│\x1b[0m \x1b[90m│\x1b[0m Decrement \x1b[90m│\x1b[0m               \x1b[36m│\x1b[0m\r\n' +
-		'\x1b[36m│\x1b[0m \x1b[90m└───────────┘\x1b[0m               \x1b[36m│\x1b[0m\r\n' +
-		'\x1b[36m╰─────────────────────────────╯\x1b[0m\r\n';
+	$effect(() => {
+		const src = editableCode;
+		clearTimeout(debounceTimer);
+		debounceTimer = setTimeout(() => {
+			compileAndUpdate(src);
+		}, 500);
+	});
+
+	async function compileAndUpdate(src: string) {
+		if (!src.trim()) return;
+		try {
+			const result = await compileComponent(src);
+			if (result.terminal) {
+				terminalJs = result.terminal.js;
+				terminalCss = result.terminal.css;
+			}
+		} catch {}
+	}
 </script>
 
 <div class="playground">
@@ -31,7 +40,7 @@
 	<div class="terminal">
 		<div class="panel-header">Terminal</div>
 		<div class="terminal-screen">
-			<TerminalPreview cols={32} rows={12} content={terminalDemo} />
+			<TerminalPreview cols={40} rows={15} {terminalJs} {terminalCss} />
 		</div>
 	</div>
 	<div class="web">
@@ -84,7 +93,7 @@
 
 	.terminal-screen {
 		flex: 1;
-		background: #000;
+		background: #0d1117;
 		min-height: 0;
 		overflow: hidden;
 	}
@@ -93,11 +102,5 @@
 		flex: 1;
 		min-height: 0;
 		overflow: hidden;
-	}
-
-	.placeholder {
-		color: #555;
-		font-style: italic;
-		margin: 0;
 	}
 </style>
