@@ -12,9 +12,26 @@
 <main>
 	<header>
 		<div class="header-row">
-			<div></div>
+			<div class="header-spacer"></div>
 			<h1 class="brand">SvelTERM</h1>
-			<ThemeToggle />
+			<div class="header-links">
+				<a href="https://tomyandell.dev" title="Tom Yandell" class="header-icon">
+					<svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+						<path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+					</svg>
+				</a>
+				<a href="https://www.npmjs.com/package/@svelterm/core" title="npm" class="header-icon">
+					<svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+						<path d="M3 3h18v18H3V3zm2.25 2.25v13.5h4.5v-11.25h3.375v11.25h1.125V5.25H5.25z"/>
+					</svg>
+				</a>
+				<a href="https://github.com/tomyan/svelterm" title="GitHub" class="header-icon">
+					<svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+						<path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.17 6.84 9.49.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.61.07-.61 1 .07 1.53 1.03 1.53 1.03.89 1.52 2.34 1.08 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02A9.56 9.56 0 0 1 12 6.8c.85 0 1.7.11 2.5.34 1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.69-4.57 4.94.36.31.68.92.68 1.85v2.75c0 .26.18.58.69.48A10 10 0 0 0 22 12c0-5.523-4.477-10-10-10z"/>
+					</svg>
+				</a>
+				<ThemeToggle />
+			</div>
 		</div>
 		<p class="tagline">Standard Svelte. Real HTML+CSS. Terminal and/or browser from the same source.</p>
 	</header>
@@ -98,7 +115,29 @@
 		align-items: center;
 	}
 
-	.header-row > div { width: 36px; }
+	.header-spacer { width: 140px; }
+
+	.header-links {
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
+	}
+
+	.header-icon {
+		color: var(--color-text-muted);
+		padding: 0.35rem;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 6px;
+		transition: color 0.15s;
+		text-decoration: none;
+	}
+
+	.header-icon:hover {
+		color: var(--color-text);
+		text-decoration: none;
+	}
 
 	h1.brand {
 		font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;

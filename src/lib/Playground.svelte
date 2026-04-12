@@ -289,6 +289,7 @@
 		color: var(--color-text-muted);
 		cursor: pointer;
 		padding: 0.15rem;
+		margin-left: -0.2rem;
 		display: flex;
 		align-items: center;
 		border-radius: 3px;

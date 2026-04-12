@@ -4,19 +4,17 @@
 
 <button class="theme-toggle" onclick={cycleThemeMode} title="Theme: {theme.mode}">
 	{#if theme.mode === 'auto'}
-		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-			<circle cx="12" cy="12" r="4"/>
-			<path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
-			<path d="M12 6a6 6 0 0 1 0 12" fill="currentColor" opacity="0.3"/>
+		<svg viewBox="-2 -2 28 28" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+			<circle cx="12" cy="12" r="10" />
+			<path d="M12 2a10 10 0 0 0 0 20z" fill="currentColor" />
 		</svg>
 	{:else if theme.mode === 'dark'}
-		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-			<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" fill="currentColor" opacity="0.2"/>
+		<svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+			<path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/>
 		</svg>
 	{:else}
-		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-			<circle cx="12" cy="12" r="5"/>
-			<path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+		<svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+			<path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58a.996.996 0 0 0-1.41 0 .996.996 0 0 0 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37a.996.996 0 0 0-1.41 0 .996.996 0 0 0 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0a.996.996 0 0 0 0-1.41l-1.06-1.06zm1.06-10.96a.996.996 0 0 0 0-1.41.996.996 0 0 0-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.36a.996.996 0 0 0 0-1.41.996.996 0 0 0-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06z"/>
 		</svg>
 	{/if}
 </button>
@@ -24,24 +22,18 @@
 <style>
 	.theme-toggle {
 		background: none;
-		border: 1px solid var(--color-border);
-		border-radius: 6px;
+		border: none;
 		color: var(--color-text-muted);
 		cursor: pointer;
 		padding: 0.35rem;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		transition: color 0.15s, border-color 0.15s;
+		border-radius: 6px;
+		transition: color 0.15s;
 	}
 
 	.theme-toggle:hover {
-		color: var(--color-accent);
-		border-color: var(--color-accent);
-	}
-
-	svg {
-		width: 18px;
-		height: 18px;
+		color: var(--color-text);
 	}
 </style>
