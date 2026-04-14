@@ -102,7 +102,7 @@
 
         @media (display-mode: terminal) {
             gap: 1cell;
-            padding: 1cell;
+            padding: 1cell 2cell;
         }
     }
 
