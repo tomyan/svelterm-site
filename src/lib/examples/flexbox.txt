@@ -1,0 +1,185 @@
+<div class="layout">
+    <div class="section">
+        <span class="label">row + gap</span>
+        <div class="row">
+            <div class="box a">one</div>
+            <div class="box b">two</div>
+            <div class="box c">three</div>
+        </div>
+    </div>
+
+    <div class="section">
+        <span class="label">flex-grow 1:2:1</span>
+        <div class="row">
+            <div class="box a g1">1fr</div>
+            <div class="box b g2">2fr</div>
+            <div class="box c g1">1fr</div>
+        </div>
+    </div>
+
+    <div class="section">
+        <span class="label">justify: space-between</span>
+        <div class="row between">
+            <div class="box a">start</div>
+            <div class="box b">middle</div>
+            <div class="box c">end</div>
+        </div>
+    </div>
+
+    <div class="section">
+        <span class="label">wrap</span>
+        <div class="row wrapping">
+            <div class="box a">A</div>
+            <div class="box b">B</div>
+            <div class="box c">C</div>
+            <div class="box a">D</div>
+            <div class="box b">E</div>
+            <div class="box c">F</div>
+            <div class="box a">G</div>
+            <div class="box b">H</div>
+            <div class="box c">I</div>
+            <div class="box a">J</div>
+            <div class="box b">K</div>
+            <div class="box c">L</div>
+            <div class="box a">M</div>
+            <div class="box b">N</div>
+            <div class="box c">O</div>
+            <div class="box a">P</div>
+            <div class="box b">Q</div>
+            <div class="box c">R</div>
+            <div class="box a">S</div>
+            <div class="box b">T</div>
+            <div class="box c">U</div>
+            <div class="box a">V</div>
+            <div class="box b">W</div>
+            <div class="box c">X</div>
+            <div class="box a">Y</div>
+            <div class="box b">Z</div>
+        </div>
+    </div>
+
+    <div class="section">
+        <span class="label">nested row + column</span>
+        <div class="row nested">
+            <div class="sidebar">
+                <div class="box a">nav</div>
+                <div class="box b">links</div>
+            </div>
+            <div class="box c g1">main content area</div>
+        </div>
+    </div>
+</div>
+
+<style>
+    :root {
+        --fg: #e8e8e8;
+        --muted: #888;
+        --c1: #48cae4;
+        --c2: #fbbf24;
+        --c3: #a78bfa;
+    }
+
+    @media (prefers-color-scheme: light) {
+        :root {
+            --fg: #1a1a2e;
+            --muted: #666;
+            --c1: #0891b2;
+            --c2: #d97706;
+            --c3: #7c3aed;
+        }
+    }
+
+    .layout {
+        display: flex;
+        flex-direction: column;
+        color: var(--fg);
+
+        @media (display-mode: browser) {
+            gap: 1.25rem;
+            padding: 1rem;
+            font-family: system-ui, sans-serif;
+        }
+
+        @media (display-mode: terminal) {
+            gap: 1cell;
+            padding: 1cell;
+        }
+    }
+
+    .section {
+        display: flex;
+        flex-direction: column;
+
+        @media (display-mode: browser) { gap: 0.25rem; }
+    }
+
+    .label {
+        color: var(--muted);
+        font-weight: bold;
+        text-transform: uppercase;
+
+        @media (display-mode: browser) {
+            font-size: 0.7rem;
+            letter-spacing: 0.05em;
+        }
+
+        @media (display-mode: terminal) { }
+    }
+
+    .row {
+        display: flex;
+        flex-direction: row;
+
+        @media (display-mode: browser) { gap: 0.5rem; }
+        @media (display-mode: terminal) { gap: 1cell; }
+    }
+
+    .box {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+
+        @media (display-mode: browser) {
+            padding: 0.5rem 1rem;
+            border: 1px solid;
+            border-radius: 4px;
+        }
+
+        @media (display-mode: terminal) {
+            padding: 0 2cell;
+            border: single;
+        }
+    }
+
+    .a { color: var(--c1); border-color: var(--c1); }
+    .b { color: var(--c2); border-color: var(--c2); }
+    .c { color: var(--c3); border-color: var(--c3); }
+
+    .g1 { flex-grow: 1; }
+    .g2 { flex-grow: 2; }
+
+    .between {
+        justify-content: space-between;
+    }
+
+    .wrapping {
+        flex-wrap: wrap;
+    }
+
+    .wrapping .box {
+        @media (display-mode: browser) { width: 2.5em; }
+    }
+
+    .nested {
+        align-items: stretch;
+    }
+
+    .sidebar {
+        display: flex;
+        flex-direction: column;
+
+        @media (display-mode: browser) { gap: 0.5rem; }
+        @media (display-mode: terminal) { gap: 1cell; }
+    }
+</style>

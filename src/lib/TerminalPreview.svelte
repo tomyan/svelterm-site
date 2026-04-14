@@ -320,20 +320,40 @@
         currentIO.feedInput(`\x1b[<${e.button === 0 ? 0 : 2};${col + 1};${row + 1}m`)
     }
 
-    let scrollAccumulator = 0
+    let scrollAccumY = 0
+    let scrollAccumX = 0
 
     function handleWheel(e: WheelEvent) {
         if (!currentIO) return
         e.preventDefault()
         const { col, row } = pixelToCell(e.clientX, e.clientY)
-        scrollAccumulator += e.deltaY / lineHeight
-        const lines = Math.trunc(scrollAccumulator)
-        if (lines !== 0) {
-            scrollAccumulator -= lines
-            const button = lines < 0 ? 64 : 65
-            const count = Math.min(Math.abs(lines), 5)
-            for (let i = 0; i < count; i++) {
-                currentIO.feedInput(`\x1b[<${button};${col + 1};${row + 1}M`)
+
+        // Shift+wheel or horizontal trackpad = horizontal scroll
+        const isHorizontal = e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)
+        const delta = isHorizontal ? (e.shiftKey ? e.deltaY : e.deltaX) : e.deltaY
+
+        if (isHorizontal) {
+            scrollAccumX += delta / charWidth
+            const cols = Math.trunc(scrollAccumX)
+            if (cols !== 0) {
+                scrollAccumX -= cols
+                // Shift modifier = bit 2 (4) on scroll codes
+                const button = cols < 0 ? (64 | 4) : (65 | 4)
+                const count = Math.min(Math.abs(cols), 5)
+                for (let i = 0; i < count; i++) {
+                    currentIO.feedInput(`\x1b[<${button};${col + 1};${row + 1}M`)
+                }
+            }
+        } else {
+            scrollAccumY += delta / lineHeight
+            const lines = Math.trunc(scrollAccumY)
+            if (lines !== 0) {
+                scrollAccumY -= lines
+                const button = lines < 0 ? 64 : 65
+                const count = Math.min(Math.abs(lines), 5)
+                for (let i = 0; i < count; i++) {
+                    currentIO.feedInput(`\x1b[<${button};${col + 1};${row + 1}M`)
+                }
             }
         }
     }

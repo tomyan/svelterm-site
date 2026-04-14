@@ -7,9 +7,22 @@
 
 	import type { Example } from './examples/index.js';
 	let { examples }: { examples: Example[] } = $props();
-	let activeIndex = $state(0);
+
+	function exampleSlug(name: string): string {
+		return name.replace(/\s+/g, '-').replace(/[^a-z0-9-]/gi, '').toLowerCase();
+	}
+
+	function initialIndex(): number {
+		if (typeof location === 'undefined') return 0;
+		const hash = location.hash.replace('#', '');
+		if (!hash) return 0;
+		const idx = examples.findIndex(e => exampleSlug(e.name) === hash);
+		return idx >= 0 ? idx : 0;
+	}
+
+	let activeIndex = $state(initialIndex());
 	let editedCodes: (string | null)[] = $state(examples.map(() => null));
-	let editableCode = $state(examples[0].code);
+	let editableCode = $state(examples[activeIndex].code);
 	let sidebarOpen = $state(false);
 
 	function isModified(index: number): boolean {
@@ -118,6 +131,8 @@
 		activeIndex = index;
 		editableCode = editedCodes[index] ?? examples[index].code;
 		sidebarOpen = false;
+		// Update URL fragment
+		history.replaceState(null, '', '#' + exampleSlug(examples[index].name));
 	}
 
 	$effect(() => {
