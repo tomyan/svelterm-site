@@ -288,6 +288,24 @@
 		background: var(--color-bg);
 	}
 
+	.preview-panel:first-child .preview-screen {
+		background-color: #0d1117;
+		background-image:
+			linear-gradient(45deg, #151c24 25%, transparent 25%, transparent 75%, #151c24 75%),
+			linear-gradient(45deg, #151c24 25%, transparent 25%, transparent 75%, #151c24 75%);
+		background-size: 8px 8px;
+		background-position: 0 0, 4px 4px;
+	}
+
+	:global([data-theme="light"]) .preview-panel:first-child .preview-screen {
+		background-color: #ffffff;
+		background-image:
+			linear-gradient(45deg, #f3f3f3 25%, transparent 25%, transparent 75%, #f3f3f3 75%),
+			linear-gradient(45deg, #f3f3f3 25%, transparent 25%, transparent 75%, #f3f3f3 75%);
+		background-size: 8px 8px;
+		background-position: 0 0, 4px 4px;
+	}
+
 	.panel-header {
 		padding: 0.4rem 0.75rem;
 		background: var(--color-bg-secondary);

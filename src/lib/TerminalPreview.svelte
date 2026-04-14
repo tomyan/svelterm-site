@@ -47,9 +47,9 @@
         //   so clientWidth reflects the content viewport.
         // Width changes with zoom (fewer cols at higher zoom).
         // Height: rows stay fixed — the terminal scrolls vertically.
-        const newWidth = container.clientWidth - 8
+        const newWidth = container.clientWidth
         const newCols = Math.max(10, Math.floor(newWidth / computedCharWidth))
-        const newHeight = container.clientHeight - 8
+        const newHeight = container.clientHeight
         const newRows = Math.max(5, Math.floor(newHeight / lineHeight))
         // Visible rows in the viewport (fewer at higher zoom)
         const visibleRows = Math.max(1, Math.floor(newHeight / (lineHeight * zoom)))
@@ -76,7 +76,7 @@
 
     onMount(() => {
         // Calculate optimal columns and font size to fill the container width
-        const containerWidth = container.clientWidth - 8 // minus padding
+        const containerWidth = container.clientWidth
         // fontFamily is defined at module level
         const minFontSize = 11
         const maxFontSize = 16
@@ -295,8 +295,8 @@
         if (!charWidth) charWidth = measureChar()
         const rect = container.getBoundingClientRect()
         return {
-            col: Math.max(0, Math.min(cols - 1, Math.floor((clientX - rect.left - 4) / charWidth))),
-            row: Math.max(0, Math.min(rows - 1, Math.floor((clientY - rect.top - 4) / lineHeight))),
+            col: Math.max(0, Math.min(cols - 1, Math.floor((clientX - rect.left) / charWidth))),
+            row: Math.max(0, Math.min(rows - 1, Math.floor((clientY - rect.top) / lineHeight))),
         }
     }
 
@@ -328,9 +328,9 @@
         e.preventDefault()
         const { col, row } = pixelToCell(e.clientX, e.clientY)
 
-        // Shift+wheel or horizontal trackpad = horizontal scroll
-        const isHorizontal = e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)
-        const delta = isHorizontal ? (e.shiftKey ? e.deltaY : e.deltaX) : e.deltaY
+        // Only shift+wheel triggers horizontal scroll (not trackpad swipe)
+        const isHorizontal = e.shiftKey
+        const delta = isHorizontal ? e.deltaY : e.deltaY
 
         if (isHorizontal) {
             scrollAccumX += delta / charWidth
@@ -401,7 +401,6 @@
     .terminal-container {
         width: 100%;
         height: 100%;
-        padding: 4px;
         box-sizing: border-box;
         outline: none;
         cursor: text;
