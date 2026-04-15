@@ -1,0 +1,153 @@
+<script>
+    let selected = $state('')
+    let selectedHex = $state('')
+
+    const groups = {
+        reds: ['#ff0000', '#dc143c', '#b22222', '#8b0000', '#cd5c5c', '#f08080'],
+        oranges: ['#ff4500', '#ff6347', '#ff7f50', '#ff8c00', '#ffa500'],
+        yellows: ['#ffd700', '#ffff00', '#f0e68c', '#bdb76b'],
+        greens: ['#00ff00', '#32cd32', '#228b22', '#006400', '#2e8b57', '#3cb371'],
+        cyans: ['#00ffff', '#40e0d0', '#20b2aa', '#008b8b', '#008080'],
+        blues: ['#0000ff', '#1e90ff', '#4169e1', '#4682b4', '#000080', '#191970'],
+        purples: ['#8a2be2', '#9400d3', '#9370db', '#663399', '#4b0082', '#800080'],
+        pinks: ['#ff1493', '#ff69b4', '#ffc0cb', '#db7093', '#c71585'],
+    }
+</script>
+
+<div class="picker">
+    <div class="preview" style="background-color: {selectedHex || '#333'};">
+        <span class="preview-text">{selectedHex || 'pick a colour'}</span>
+    </div>
+
+    {#each Object.entries(groups) as [name, colors]}
+        <div class="group">
+            <span class="label">{name}</span>
+            <div class="swatches">
+                {#each colors as hex}
+                    <button
+                        class="swatch"
+                        class:selected={selectedHex === hex}
+                        style="background-color: {hex};"
+                        onclick={() => { selectedHex = hex; selected = name }}
+                    > </button>
+                {/each}
+            </div>
+        </div>
+    {/each}
+</div>
+
+<style>
+    :root {
+        --fg: #e8e8e8;
+        --muted: #888;
+    }
+
+    @media (prefers-color-scheme: light) {
+        :root {
+            --fg: #1a1a2e;
+            --muted: #666;
+        }
+    }
+
+    .picker {
+        display: flex;
+        flex-direction: column;
+        color: var(--fg);
+
+        @media (display-mode: browser) {
+            gap: 0.75rem;
+            padding: 1rem;
+            font-family: system-ui, sans-serif;
+        }
+
+        @media (display-mode: terminal) {
+            gap: 1cell;
+            padding: 1cell 2cell;
+        }
+    }
+
+    .preview {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+
+        @media (display-mode: browser) {
+            height: 3rem;
+            border-radius: 6px;
+            font-family: monospace;
+        }
+
+        @media (display-mode: terminal) {
+            height: 3cell;
+            border: single;
+        }
+    }
+
+    .preview-text {
+        color: white;
+
+        @media (display-mode: browser) {
+            text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+        }
+    }
+
+    .group {
+        display: flex;
+        flex-direction: column;
+
+        @media (display-mode: browser) { gap: 0.2rem; }
+    }
+
+    .label {
+        color: var(--muted);
+        font-weight: bold;
+        text-transform: uppercase;
+
+        @media (display-mode: browser) {
+            font-size: 0.65rem;
+            letter-spacing: 0.05em;
+        }
+
+        @media (display-mode: terminal) { opacity: dim; }
+    }
+
+    .swatches {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+
+        @media (display-mode: browser) { gap: 3px; }
+    }
+
+    .swatch {
+        cursor: pointer;
+
+        @media (display-mode: browser) {
+            width: 2rem;
+            height: 1.5rem;
+            border: 2px solid transparent;
+            border-radius: 3px;
+            padding: 0;
+        }
+
+        @media (display-mode: terminal) {
+            width: 3cell;
+            height: 1cell;
+            border: none;
+            padding: 0;
+        }
+    }
+
+    .swatch.selected {
+        @media (display-mode: browser) {
+            border-color: white;
+            box-shadow: 0 0 0 1px #333;
+        }
+
+        @media (display-mode: terminal) {
+            border: single;
+            border-color: white;
+        }
+    }
+</style>
