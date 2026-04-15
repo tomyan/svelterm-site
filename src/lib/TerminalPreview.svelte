@@ -71,7 +71,7 @@
             })
             renderer.render()
         }
-        onResize?.(newCols, visibleRows)
+        onResize?.(newCols, rows)
     }
 
     onMount(() => {
