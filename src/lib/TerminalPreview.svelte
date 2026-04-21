@@ -297,9 +297,14 @@
     function pixelToCell(clientX: number, clientY: number): { col: number; row: number } {
         if (!charWidth) charWidth = measureChar()
         const rect = container.getBoundingClientRect()
+        // The preview-screen applies transform: scale(zoom), so rect coordinates
+        // and clientX/Y are in scaled viewport pixels. charWidth/lineHeight are
+        // in unscaled CSS pixels. Divide the visual delta by zoom first.
+        const scaledCharWidth = charWidth * zoom
+        const scaledLineHeight = lineHeight * zoom
         return {
-            col: Math.max(0, Math.min(cols - 1, Math.floor((clientX - rect.left) / charWidth))),
-            row: Math.max(0, Math.min(rows - 1, Math.floor((clientY - rect.top) / lineHeight))),
+            col: Math.max(0, Math.min(cols - 1, Math.floor((clientX - rect.left) / scaledCharWidth))),
+            row: Math.max(0, Math.min(rows - 1, Math.floor((clientY - rect.top) / scaledLineHeight))),
         }
     }
 
