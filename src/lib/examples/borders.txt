@@ -1,0 +1,158 @@
+<script>
+    let cornerMode = $state('none')
+</script>
+
+<div class="page">
+    <h2>Box-drawing styles</h2>
+    <p class="hint">Thin strokes through cell centres. The cell bg shows through the gap.</p>
+    <div class="row">
+        <div class="cell">
+            <div class="box single"></div>
+            <span class="label">single</span>
+        </div>
+        <div class="cell">
+            <div class="box double"></div>
+            <span class="label">double</span>
+        </div>
+        <div class="cell">
+            <div class="box rounded"></div>
+            <span class="label">rounded</span>
+        </div>
+        <div class="cell">
+            <div class="box heavy"></div>
+            <span class="label">heavy</span>
+        </div>
+    </div>
+
+    <h2>Block-character styles, with bg</h2>
+    <p class="hint">Block strokes compose cleanly with background-color.</p>
+    <div class="row">
+        <div class="cell">
+            <div class="box bg eighth-inner"></div>
+            <span class="label">eighth-cell-inner</span>
+        </div>
+        <div class="cell">
+            <div class="box bg eighth-outer"></div>
+            <span class="label">eighth-cell-outer</span>
+        </div>
+        <div class="cell">
+            <div class="box bg half-inner"></div>
+            <span class="label">half-cell-inner</span>
+        </div>
+        <div class="cell">
+            <div class="box bg half-outer"></div>
+            <span class="label">half-cell-outer</span>
+        </div>
+        <div class="cell">
+            <div class="box bg full"></div>
+            <span class="label">full-cell</span>
+        </div>
+    </div>
+
+    <h2>Corner ownership: <em>{cornerMode}</em></h2>
+    <div class="row">
+        <button class:active={cornerMode === 'none'} onclick={() => cornerMode = 'none'}>none</button>
+        <button class:active={cornerMode === 'h'} onclick={() => cornerMode = 'h'}>h</button>
+        <button class:active={cornerMode === 'v'} onclick={() => cornerMode = 'v'}>v</button>
+    </div>
+    <div class="row">
+        <div class="cell">
+            <div class="box bg eighth-inner" style="--corner: {cornerMode}"></div>
+            <span class="label">eighth-inner</span>
+        </div>
+        <div class="cell">
+            <div class="box bg half-inner" style="--corner: {cornerMode}"></div>
+            <span class="label">half-inner</span>
+        </div>
+    </div>
+</div>
+
+<style>
+    .page {
+        display: flex;
+        flex-direction: column;
+        @media (display-mode: browser) { gap: 1rem; padding: 1rem; font-family: system-ui, sans-serif; color: #e8e8e8; }
+        @media (display-mode: terminal) { gap: 1cell; padding: 1cell 2cell; }
+    }
+
+    h2 {
+        @media (display-mode: browser) { font-size: 0.9rem; margin: 0; opacity: 0.8; }
+        @media (display-mode: terminal) { font-weight: bold; }
+    }
+
+    .hint {
+        @media (display-mode: browser) { font-size: 0.75rem; margin: 0; opacity: 0.55; }
+        @media (display-mode: terminal) { opacity: dim; }
+    }
+
+    em {
+        font-style: normal;
+        @media (display-mode: browser) { color: #48cae4; }
+        @media (display-mode: terminal) { color: cyan; }
+    }
+
+    .row {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        @media (display-mode: browser) { gap: 0.75rem; }
+        @media (display-mode: terminal) { gap: 2cell; }
+    }
+
+    .cell {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        @media (display-mode: browser) { gap: 0.25rem; }
+        @media (display-mode: terminal) { gap: 0; }
+    }
+
+    .box {
+        @media (display-mode: browser) { width: 8rem; height: 4rem; border: 1px solid #888; }
+        @media (display-mode: terminal) { width: 16cell; height: 5cell; }
+    }
+
+    .box.bg {
+        @media (display-mode: browser) { background-color: #2c0e40; }
+        @media (display-mode: terminal) { background-color: #2c0e40; border-color: #ffd700; }
+    }
+
+    .label {
+        font-family: monospace;
+        @media (display-mode: browser) { font-size: 0.7rem; color: #aaa; }
+        @media (display-mode: terminal) { color: white; opacity: dim; }
+    }
+
+    .single  { @media (display-mode: terminal) { border-style: single; border-color: #888; } }
+    .double  { @media (display-mode: terminal) { border-style: double; border-color: #888; } }
+    .rounded { @media (display-mode: terminal) { border-style: rounded; border-color: #888; } }
+    .heavy   { @media (display-mode: terminal) { border-style: heavy; border-color: #888; } }
+
+    .eighth-inner { @media (display-mode: terminal) { border-style: eighth-cell-inner; border-corner: var(--corner, none); } }
+    .eighth-outer { @media (display-mode: terminal) { border-style: eighth-cell-outer; border-corner: var(--corner, none); } }
+    .half-inner   { @media (display-mode: terminal) { border-style: half-cell-inner;   border-corner: var(--corner, none); } }
+    .half-outer   { @media (display-mode: terminal) { border-style: half-cell-outer;   border-corner: var(--corner, none); } }
+    .full         { @media (display-mode: terminal) { border-style: full-cell; } }
+
+    button {
+        cursor: pointer;
+        @media (display-mode: browser) {
+            padding: 0.25rem 0.75rem;
+            border: 1px solid #555;
+            border-radius: 4px;
+            background: transparent;
+            color: inherit;
+            font-size: 0.75rem;
+            font-family: monospace;
+        }
+        @media (display-mode: terminal) {
+            border: single;
+            padding: 0 1cell;
+        }
+    }
+
+    button.active {
+        @media (display-mode: browser) { background: #48cae4; color: #000; border-color: #48cae4; }
+        @media (display-mode: terminal) { font-weight: bold; border: double; }
+    }
+</style>

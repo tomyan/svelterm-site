@@ -71,6 +71,7 @@
         align-items: center;
         justify-content: center;
         font-weight: bold;
+        flex-shrink: 0;
 
         @media (display-mode: browser) {
             height: 3rem;

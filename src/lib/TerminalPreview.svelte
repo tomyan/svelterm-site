@@ -20,7 +20,7 @@
     let rows = 15
     let computedFontSize = 13
     let computedCharWidth = 0
-    const fontFamily = "'SF Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace"
+    const fontFamily = "'JetBrains Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace"
 
     let container: HTMLElement
     let terminal: Terminal
@@ -64,7 +64,7 @@
             renderer.dispose()
             renderer = new TerminalRenderer(container, terminal, {
                 fontSize: computedFontSize,
-                lineHeight: 1.3,
+                lineHeight: 1.0,
                 foreground: colors.foreground,
                 background: colors.background,
                 fontFamily,
@@ -109,10 +109,13 @@
         fontSize = Math.min(maxFontSize, Math.max(minFontSize, fontSize * ratio))
         charW = measureCharWidth(fontSize)
 
-        // Recalculate cols with adjusted font size
+        // Round to whole pixels — fractional font sizes cause subpixel gaps
+        // between rows where block-character cell backgrounds don't align cleanly
+        fontSize = Math.round(fontSize)
+        charW = measureCharWidth(fontSize)
         cols = Math.floor(containerWidth / charW)
         computedFontSize = fontSize
-        lineHeight = fontSize * 1.3
+        lineHeight = fontSize * 1.0
 
         computedCharWidth = charW
 
@@ -124,7 +127,7 @@
         }
         renderer = new TerminalRenderer(container, terminal, {
             fontSize,
-            lineHeight: 1.3,
+            lineHeight: 1.0,
             foreground: initColors.foreground,
             background: initColors.background,
             fontFamily,
@@ -182,7 +185,7 @@
         renderer.dispose()
         renderer = new TerminalRenderer(container, terminal, {
             fontSize: computedFontSize,
-            lineHeight: 1.3,
+            lineHeight: 1.0,
             foreground: colors.foreground,
             background: colors.background,
             fontFamily,
@@ -276,7 +279,7 @@
 
     function measureChar() {
         const span = document.createElement('span')
-        span.style.fontFamily = "'SF Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace"
+        span.style.fontFamily = "'JetBrains Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace"
         span.style.fontSize = '13px'
         span.style.position = 'absolute'
         span.style.visibility = 'hidden'
@@ -289,7 +292,7 @@
     }
 
     let charWidth = 0
-    let lineHeight = 13 * 1.3
+    let lineHeight = 13 * 1.0
 
     function pixelToCell(clientX: number, clientY: number): { col: number; row: number } {
         if (!charWidth) charWidth = measureChar()
