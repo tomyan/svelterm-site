@@ -1,7 +1,7 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import { Terminal } from '@svelterm/vt100';
-    import { TerminalRenderer } from '@svelterm/vt100/dom';
+    import TerminalView from '@svelterm/vt100/svelte';
     import { theme } from './theme.svelte.js';
 
     let {
@@ -18,16 +18,21 @@
 
     let cols = 40
     let rows = 15
-    let computedFontSize = 13
+    let computedFontSize = $state(13)
     let computedCharWidth = 0
     const fontFamily = "'JetBrains Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace"
 
     let container: HTMLElement
-    let terminal: Terminal
-    let renderer: TerminalRenderer
+    // $state.raw — only the null → instance transition needs to be reactive
+    // (so `{#if terminal}` re-evaluates). Deep-proxying these would treat
+    // every internal mutation as a reactive change and re-fire any effect
+    // that called a method on them, causing an infinite mount loop.
+    let terminal = $state.raw<Terminal | null>(null)
+    let foreground = $state('#c9d1d9')
+    let background = $state('#0d1117')
     let cleanup: (() => void) | null = null
     let currentIO: any = null
-    let sveltermRuntime: any = $state(null)
+    let sveltermRuntime: any = $state.raw(null)
 
 
     function isLight(): boolean {
@@ -41,7 +46,7 @@
     }
 
     function recalculateSize() {
-        if (!container || !terminal || !renderer || !computedCharWidth) return
+        if (!container || !terminal || !computedCharWidth) return
         // The preview-screen has width:{100/zoom}% and transform:scale(zoom).
         // Width: the percentage resolves correctly (cross-axis in column flex),
         //   so clientWidth reflects the content viewport.
@@ -51,8 +56,6 @@
         const newCols = Math.max(10, Math.floor(newWidth / computedCharWidth))
         const newHeight = container.clientHeight
         const newRows = Math.max(5, Math.floor(newHeight / lineHeight))
-        // Visible rows in the viewport (fewer at higher zoom)
-        const visibleRows = Math.max(1, Math.floor(newHeight / (lineHeight * zoom)))
         if (newCols !== cols || newRows !== rows) {
             cols = newCols
             rows = newRows
@@ -60,16 +63,6 @@
             if (currentIO) {
                 currentIO.setSize(cols, rows)
             }
-            const colors = termColors()
-            renderer.dispose()
-            renderer = new TerminalRenderer(container, terminal, {
-                fontSize: computedFontSize,
-                lineHeight: 1.0,
-                foreground: colors.foreground,
-                background: colors.background,
-                fontFamily,
-            })
-            renderer.render()
         }
         onResize?.(newCols, rows)
     }
@@ -120,18 +113,15 @@
         computedCharWidth = charW
 
         const initColors = termColors()
-        terminal = new Terminal(cols, rows)
-        terminal.backgroundColor = initColors.background
-        terminal.onResponse = (data: string) => {
+        foreground = initColors.foreground
+        background = initColors.background
+
+        const t = new Terminal(cols, rows)
+        t.backgroundColor = initColors.background
+        t.onResponse = (data: string) => {
             if (currentIO) currentIO.feedInput(data)
         }
-        renderer = new TerminalRenderer(container, terminal, {
-            fontSize,
-            lineHeight: 1.0,
-            foreground: initColors.foreground,
-            background: initColors.background,
-            fontFamily,
-        })
+        terminal = t
 
         onResize?.(cols, rows)
 
@@ -146,7 +136,6 @@
         return () => {
             resizeObserver.disconnect()
             if (cleanup) cleanup()
-            renderer.dispose()
         }
     })
 
@@ -170,31 +159,24 @@
     $effect(() => {
         // Recalculate terminal size when zoom changes
         const z = zoom
-        if (!container || !terminal || !renderer) return
+        if (!container || !terminal) return
         recalculateSize()
     })
 
 
     $effect(() => {
-        // Update terminal colors when theme changes — affects both the OSC 11
-        // response (for svelterm's prefers-color-scheme) and the visual rendering
+        // Update terminal colors when theme changes — affects the OSC 11
+        // response (for svelterm's prefers-color-scheme) and the rendered colours
         const m = theme.mode
-        if (!terminal || !renderer || !container) return
+        if (!terminal) return
         const colors = termColors()
         terminal.backgroundColor = colors.background
-        renderer.dispose()
-        renderer = new TerminalRenderer(container, terminal, {
-            fontSize: computedFontSize,
-            lineHeight: 1.0,
-            foreground: colors.foreground,
-            background: colors.background,
-            fontFamily,
-        })
-        renderer.render()
+        foreground = colors.foreground
+        background = colors.background
     })
 
     $effect(() => {
-        if (!sveltermRuntime || !terminal || !renderer) return
+        if (!sveltermRuntime || !terminal) return
         const js = terminalJs
         const css = terminalCss
         if (!js) return
@@ -203,6 +185,7 @@
     })
 
     async function mountTerminalComponent(js: string, css: string) {
+        if (!terminal) return
         // Unmount previous
         if (cleanup) {
             try { cleanup() } catch {}
@@ -246,7 +229,6 @@
             const Component = mod.default
             if (!Component) {
                 terminal.write('\x1b[31mNo default export found\x1b[0m\r\n')
-                renderer.render()
                 return
             }
 
@@ -254,8 +236,7 @@
             const { run, InProcessIO } = sveltermRuntime
             const io = new InProcessIO(cols, rows)
             io.onOutput = (data: string) => {
-                terminal.write(data)
-                renderer.scheduleRender()
+                terminal!.write(data)
             }
             currentIO = io
 
@@ -269,10 +250,8 @@
             // Hide cursor — svelterm does this in fullscreen mode but we
             // don't use fullscreen in the browser-embedded terminal
             terminal.write('\x1b[?25l')
-            renderer.render()
         } catch (e: any) {
             terminal.write(`\x1b[31mError: ${e.message}\x1b[0m\r\n`)
-            renderer.render()
             console.error('Terminal mount error:', e)
         }
     }
@@ -403,7 +382,18 @@
     onmousemove={handleMouseMove}
     onwheel={handleWheel}
     onkeydown={handleKeyDown}
-></div>
+>
+    {#if terminal}
+        <TerminalView
+            terminal={terminal}
+            fontSize={computedFontSize}
+            lineHeight={1.0}
+            {fontFamily}
+            {foreground}
+            {background}
+        />
+    {/if}
+</div>
 
 <style>
     .terminal-container {
