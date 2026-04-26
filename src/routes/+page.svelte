@@ -1,6 +1,7 @@
 <script>
 	import Playground from '$lib/Playground.svelte';
 	import Section from '$lib/Section.svelte';
+	import ShellLaunch from '$lib/ShellLaunch.svelte';
 	import ThemeToggle from '$lib/ThemeToggle.svelte';
 	import { examples } from '$lib/examples/index.js';
 </script>
@@ -37,6 +38,15 @@
 	</header>
 
 	<Playground {examples} />
+
+	<Section title="Live Linux in your browser">
+		<p>
+			A real Linux (buildroot, 5MB bzImage) running client-side via
+			<a href="https://github.com/copy/v86">v86</a>, with its serial output piped through
+			our vt100 renderer. Lazy-loaded — nothing downloads until you click.
+		</p>
+		<ShellLaunch />
+	</Section>
 
 	<Section title="Terminal CSS">
 		<p>Things that are different in the terminal:</p>

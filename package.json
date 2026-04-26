@@ -32,6 +32,7 @@
 		"@sveltejs/adapter-static": "^3.0.10",
 		"@svelterm/vt100": "file:../svelterm-vt100",
 		"codemirror": "^6.0.2",
-		"mdsvex": "^0.12.7"
+		"mdsvex": "^0.12.7",
+		"v86": "^0.5.334"
 	}
 }
