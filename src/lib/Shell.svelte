@@ -1,7 +1,7 @@
 <script lang="ts">
     import { onMount, onDestroy } from 'svelte'
-    import { Terminal, keyEventToBytes } from '@svelterm/vt100'
-    import TerminalView from '@svelterm/vt100/svelte'
+    import EmbeddedTerminal from '@svelterm/vt100/EmbeddedTerminal'
+    import type { TerminalStream } from '@svelterm/vt100'
     import { V86 } from 'v86'
     import v86WasmUrl from 'v86/build/v86.wasm?url'
 
@@ -13,26 +13,8 @@
         rows?: number
     } = $props()
 
-    const terminal = new Terminal(cols, rows)
-
-    let container: HTMLElement
     let emulator: V86 | null = null
-    let pendingBytes: number[] = []
-    let flushScheduled = false
-
-    function flush() {
-        flushScheduled = false
-        if (pendingBytes.length === 0) return
-        const bytes = new Uint8Array(pendingBytes)
-        pendingBytes = []
-        terminal.write(bytes)
-    }
-
-    function scheduleFlush() {
-        if (flushScheduled) return
-        flushScheduled = true
-        queueMicrotask(flush)
-    }
+    let stream: TerminalStream | null = $state(null)
 
     onMount(() => {
         emulator = new V86({
@@ -48,13 +30,7 @@
             disable_keyboard: true,
             disable_mouse: true,
         })
-
-        emulator.add_listener('serial0-output-byte', (byte: number) => {
-            pendingBytes.push(byte)
-            scheduleFlush()
-        })
-
-        container?.focus()
+        stream = makeV86Stream(emulator, 0)
     })
 
     onDestroy(() => {
@@ -64,25 +40,86 @@
             // v86 may throw on destroy during boot; ignore
         }
         emulator = null
+        stream?.close()
     })
 
-    function handleKeydown(event: KeyboardEvent) {
-        const bytes = keyEventToBytes(event)
-        if (bytes.length === 0) return
-        event.preventDefault()
-        emulator?.serial_send_bytes(0, bytes)
+    /**
+     * Wrap one of v86's UARTs as a TerminalStream. Buffers output before
+     * the first onOutput subscriber so boot bytes emitted in the moment
+     * between v86 starting and the consumer attaching aren't lost.
+     *
+     * Resize is a no-op: v86's serial console doesn't have a window-size
+     * channel, so the guest sees a fixed 80x24. Leaving the slot in case
+     * we later wire up a kernel hook to send SIGWINCH.
+     */
+    function makeV86Stream(emu: V86, uart: 0 | 1 | 2 | 3): TerminalStream {
+        const outputListeners = new Set<(bytes: Uint8Array) => void>()
+        const closeListeners = new Set<(reason: Error | null) => void>()
+        let buffered: Uint8Array | null = null
+        let pendingBytes: number[] = []
+        let flushScheduled = false
+        let closed = false
+
+        function flush() {
+            flushScheduled = false
+            if (pendingBytes.length === 0) return
+            const bytes = new Uint8Array(pendingBytes)
+            pendingBytes = []
+            if (outputListeners.size === 0) {
+                buffered = buffered ? concat(buffered, bytes) : bytes
+            } else {
+                for (const cb of outputListeners) cb(bytes)
+            }
+        }
+
+        emu.add_listener(`serial${uart}-output-byte`, (byte: number) => {
+            pendingBytes.push(byte)
+            if (!flushScheduled) {
+                flushScheduled = true
+                queueMicrotask(flush)
+            }
+        })
+
+        return {
+            onOutput(listener) {
+                outputListeners.add(listener)
+                if (buffered) {
+                    listener(buffered)
+                    buffered = null
+                }
+                return () => outputListeners.delete(listener)
+            },
+            write(bytes) {
+                if (closed) return
+                emu.serial_send_bytes(uart, bytes)
+            },
+            resize(_cols, _rows) {
+                // v86 serial console has no window-size channel.
+            },
+            onClose(listener) {
+                closeListeners.add(listener)
+                return () => closeListeners.delete(listener)
+            },
+            close() {
+                if (closed) return
+                closed = true
+                for (const cb of closeListeners) cb(null)
+            },
+        }
+    }
+
+    function concat(a: Uint8Array, b: Uint8Array): Uint8Array {
+        const merged = new Uint8Array(a.length + b.length)
+        merged.set(a)
+        merged.set(b, a.length)
+        return merged
     }
 </script>
 
-<div
-    bind:this={container}
-    class="shell"
-    tabindex="0"
-    role="application"
-    aria-label="Embedded Linux shell"
-    onkeydown={handleKeydown}
->
-    <TerminalView {terminal} />
+<div class="shell">
+    {#if stream}
+        <EmbeddedTerminal {stream} {cols} {rows} />
+    {/if}
 </div>
 
 <style>
