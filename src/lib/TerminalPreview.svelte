@@ -33,6 +33,7 @@
     let cleanup: (() => void) | null = null
     let currentIO: any = null
     let sveltermRuntime: any = $state.raw(null)
+    let v86Factory: { v86Stream: (...args: any[]) => any; destroy: () => void } | null = null
 
 
     function isLight(): boolean {
@@ -142,14 +143,30 @@
     async function loadRuntime() {
         try {
             const runtime = await import('./svelterm-runtime.js')
+            v86Factory = runtime.createV86StreamFactory()
+
+            // Seed the module map first — the EmbeddedTerminalRegion
+            // blob reads `__svelterm_terminal_modules__.internal/renderer/
+            // vt100` at its own top level, so it has to exist when
+            // loadEmbeddedTerminalRegion imports the blob.
+            ;(window as any).__svelterm_terminal_modules__ = {
+                internal: runtime.svelteInternal,
+                renderer: runtime.sveltermCore,
+                vt100: runtime.sveltermVt100,
+                v86Stream: v86Factory.v86Stream,
+                embeddedTerminalRegion: null,
+            }
+
+            // Compile + load Region, then publish to the same map. The
+            // example's dynamic-import rewrite reads embeddedTerminalRegion
+            // when it runs, so it must be non-null before mountTerminal
+            // sees a runtime — hence sveltermRuntime is held until now.
+            const region = await runtime.loadEmbeddedTerminalRegion()
+            ;(window as any).__svelterm_terminal_modules__.embeddedTerminalRegion = region
+
             sveltermRuntime = {
                 run: runtime.run,
                 InProcessIO: runtime.InProcessIO,
-            }
-
-            ;(window as any).__svelterm_terminal_modules__ = {
-                internal: runtime.svelteInternal,
-                renderer: { default: runtime.sveltermRenderer },
             }
         } catch (e) {
             console.error('Failed to load svelterm runtime:', e)
@@ -186,11 +203,16 @@
 
     async function mountTerminalComponent(js: string, css: string) {
         if (!terminal) return
-        // Unmount previous
+        // Unmount previous. The cleanup chain should already close any
+        // streams the previous demo opened (via onDestroy) and let the
+        // factory's refcount drop the VM. Belt-and-braces: also nudge
+        // the factory in case cleanup threw before reaching the demo's
+        // onDestroy.
         if (cleanup) {
             try { cleanup() } catch {}
             cleanup = null
         }
+        v86Factory?.destroy()
 
         // Clear terminal
         terminal.write('\x1b[2J\x1b[H')
@@ -200,7 +222,7 @@
             let code = js
             // Strip side-effect imports
             code = code.replace(/^import\s+['"]svelte[^'"]*['"];?\s*$/gm, '')
-            code = code.replace(/^import\s+['"]\@svelterm[^'"]*['"];?\s*$/gm, '')
+            code = code.replace(/^import\s+['"]\@svelterm\/core['"];?\s*$/gm, '')
             // Rewrite: import * as $ from 'svelte/internal/client' → const $ = __internal__
             code = code.replace(/import\s+\*\s+as\s+([\w$]+)\s+from\s+['"]svelte[^'"]*['"]/g,
                 'const $1 = __internal__')
@@ -209,14 +231,30 @@
                 'const {$1} = __internal__')
             code = code.replace(/import\s+\{([^}]+)\}\s+from\s+['"]svelte['"]/g,
                 'const {$1} = __internal__')
+            // Rewrite: import { useRenderTarget } from '@svelterm/core' → const { ... } = __renderer__
+            code = code.replace(/import\s+\{([^}]+)\}\s+from\s+['"]\@svelterm\/core['"]/g,
+                'const {$1} = __renderer__')
             // Rewrite: import $renderer from '@svelterm/core' → const $renderer = __renderer__.default
             code = code.replace(/import\s+([\w$]+)\s+from\s+['"]\@svelterm\/core['"]/g,
                 'const $1 = __renderer__.default')
+            // Rewrite: import { v86Stream } from 'v86-stream'
+            code = code.replace(/import\s+\{([^}]+)\}\s+from\s+['"]v86-stream['"]/g,
+                'const {$1} = __v86__')
+            // Rewrite dynamic imports of vt100 embedded-terminal variants
+            code = code.replace(
+                /import\(\s*['"]\@svelterm\/vt100\/EmbeddedTerminalRegion['"]\s*\)/g,
+                'Promise.resolve({ default: window.__svelterm_terminal_modules__.embeddedTerminalRegion })',
+            )
+            code = code.replace(
+                /import\(\s*['"]\@svelterm\/vt100\/EmbeddedTerminalDom['"]\s*\)/g,
+                'Promise.reject(new Error("EmbeddedTerminalDom is not available in the terminal preview"))',
+            )
 
             // Wrap with runtime references
             const moduleCode = [
                 'const __internal__ = window.__svelterm_terminal_modules__.internal;',
                 'const __renderer__ = window.__svelterm_terminal_modules__.renderer;',
+                'const __v86__ = { v86Stream: window.__svelterm_terminal_modules__.v86Stream };',
                 code,
             ].join('\n')
 

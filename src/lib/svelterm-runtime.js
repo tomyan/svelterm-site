@@ -3,4 +3,7 @@
 // that only applies to .svelte files.
 export { run, InProcessIO } from '@svelterm/core/app'
 export * as svelteInternal from 'svelte/internal/client'
-export { default as sveltermRenderer } from '@svelterm/core'
+export * as sveltermCore from '@svelterm/core'
+export * as sveltermVt100 from '@svelterm/vt100'
+export { createV86StreamFactory } from './v86-stream.js'
+export { loadEmbeddedTerminalRegion } from './embedded-terminal-region-loader.js'

@@ -11,8 +11,8 @@ export const examples: Example[] = Object.entries(modules)
         code: code.trim(),
     }))
     .sort((a, b) => {
-        // Put counter first, then alphabetical
-        if (a.name === 'counter') return -1
-        if (b.name === 'counter') return 1
+        // Put embedded-terminal first, then alphabetical
+        if (a.name === 'embedded terminal') return -1
+        if (b.name === 'embedded terminal') return 1
         return a.name.localeCompare(b.name)
     })

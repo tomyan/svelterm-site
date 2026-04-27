@@ -1,6 +1,6 @@
 <script lang="ts">
     import { onMount, onDestroy } from 'svelte'
-    import EmbeddedTerminal from '@svelterm/vt100/EmbeddedTerminal'
+    import EmbeddedTerminal from '@svelterm/vt100/EmbeddedTerminalDom'
     import type { TerminalStream } from '@svelterm/vt100'
     import { V86 } from 'v86'
     import v86WasmUrl from 'v86/build/v86.wasm?url'

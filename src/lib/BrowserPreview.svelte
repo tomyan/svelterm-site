@@ -39,12 +39,25 @@
     function rewriteImports(js: string): string {
         let code = js
         code = code.replace(/^import\s+['"]svelte[^'"]*['"];?\s*$/gm, '')
+        code = code.replace(/^import\s+['"]\@svelterm\/core['"];?\s*$/gm, '')
         code = code.replace(/import\s+\*\s+as\s+([\w$]+)\s+from\s+['"]svelte[^'"]*['"]/g,
             'const $1 = __internal__')
         code = code.replace(/import\s+\{([^}]+)\}\s+from\s+['"]svelte\/[^'"]*['"]/g,
             'const {$1} = __internal__')
         code = code.replace(/import\s+\{([^}]+)\}\s+from\s+['"]svelte['"]/g,
             'const {$1} = __svelte__')
+        code = code.replace(/import\s+\{([^}]+)\}\s+from\s+['"]\@svelterm\/core['"]/g,
+            'const {$1} = __sveltermCore__')
+        code = code.replace(/import\s+\{([^}]+)\}\s+from\s+['"]v86-stream['"]/g,
+            'const {$1} = __v86__')
+        code = code.replace(
+            /import\(\s*['"]\@svelterm\/vt100\/EmbeddedTerminalDom['"]\s*\)/g,
+            'Promise.resolve({ default: window.__svelterm_rt__.embeddedTerminalDom })',
+        )
+        code = code.replace(
+            /import\(\s*['"]\@svelterm\/vt100\/EmbeddedTerminalRegion['"]\s*\)/g,
+            'Promise.reject(new Error("EmbeddedTerminalRegion is not available in the browser preview"))',
+        )
         return code
     }
 
@@ -63,10 +76,17 @@
     }
 
     function mountInIframe(js: string, _css: string) {
+        // The previous iframe context is about to be discarded; the demo
+        // running inside has no chance to fire onDestroy and close its
+        // streams. Tear down the v86 VM here so listeners on the dying
+        // iframe stop accumulating against a still-live emulator.
+        v86Factory?.destroy()
         const rewritten = rewriteCssInJs(rewriteImports(js))
         const moduleCode = [
             'const __svelte__ = window.__svelterm_rt__.svelte;',
             'const __internal__ = window.__svelterm_rt__.internal;',
+            'const __sveltermCore__ = window.__svelterm_rt__.sveltermCore;',
+            'const __v86__ = { v86Stream: window.__svelterm_rt__.v86Stream };',
             rewritten,
         ].join('\n')
 
@@ -100,7 +120,17 @@
             '  window.__svelterm_rt__ = {',
             '    svelte: window.parent.__svelterm_modules__.svelte,',
             '    internal: window.parent.__svelterm_modules__.internal,',
+            '    sveltermCore: window.parent.__svelterm_modules__.sveltermCore,',
+            '    embeddedTerminalDom: window.parent.__svelterm_modules__.embeddedTerminalDom,',
+            '    v86Stream: window.parent.__svelterm_modules__.v86Stream,',
             '  };',
+            '  // Vite-plugin-svelte injects scoped component styles into the',
+            '  // parent document. Library components mounted in the iframe',
+            '  // (EmbeddedTerminalDom, TerminalView, ...) reference those',
+            '  // class hashes, so clone them in.',
+            '  for (const style of window.parent.document.querySelectorAll("style[data-vite-dev-id]")) {',
+            '    document.head.appendChild(style.cloneNode(true));',
+            '  }',
             '  const blob = new Blob([event.data.code], { type: "text/javascript" });',
             '  const url = URL.createObjectURL(blob);',
             '  try {',
@@ -140,19 +170,28 @@
         }
     })
 
+    let v86Factory: { v86Stream: (...args: any[]) => any; destroy: () => void } | null = null
+
     async function loadModules() {
-        const [svelteModule, internalModule, discloseModule, flagsModule] = await Promise.all([
+        const [svelteModule, internalModule, discloseModule, flagsModule, embeddedTerminalDomModule, v86StreamModule, sveltermCoreModule] = await Promise.all([
             import('svelte'),
             import(/* @vite-ignore */ 'svelte/internal/client'),
             import(/* @vite-ignore */ 'svelte/internal/disclose-version').catch(() => ({})),
             import(/* @vite-ignore */ 'svelte/internal/flags/legacy').catch(() => ({})),
+            import('@svelterm/vt100/EmbeddedTerminalDom'),
+            import('./v86-stream.js'),
+            import('@svelterm/core'),
         ]);
 
         const allInternal = { ...internalModule, ...discloseModule, ...flagsModule };
+        v86Factory = (v86StreamModule as any).createV86StreamFactory();
 
         (window as any).__svelterm_modules__ = {
             svelte: svelteModule,
             internal: allInternal,
+            sveltermCore: sveltermCoreModule,
+            embeddedTerminalDom: (embeddedTerminalDomModule as any).default,
+            v86Stream: v86Factory!.v86Stream,
         };
 
         ready = true
