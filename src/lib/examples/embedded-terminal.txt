@@ -2,26 +2,18 @@
     import { onDestroy } from 'svelte'
     import { isTerminal } from '@svelterm/core'
     import { v86Stream } from 'v86-stream'
-    import type { Component } from 'svelte'
     import type { TerminalStream } from '@svelterm/vt100'
 
-    let EmbeddedTerminal = $state<Component<{ stream: TerminalStream }> | null>(null)
-
-    $effect.pre(async () => {
-        const mod = isTerminal()
-            ? await import('@svelterm/vt100/EmbeddedTerminalRegion')
-            : await import('@svelterm/vt100/EmbeddedTerminalDom')
-        EmbeddedTerminal = mod.default
-    })
+    const { default: EmbeddedTerminal } = isTerminal()
+        ? await import('@svelterm/vt100/EmbeddedTerminalRegion')
+        : await import('@svelterm/vt100/EmbeddedTerminalDom')
 
     const stream: TerminalStream = v86Stream({ uart: 0 })
     onDestroy(() => stream.close())
 </script>
 
 <div class="shell">
-    {#if EmbeddedTerminal}
-        <EmbeddedTerminal {stream} />
-    {/if}
+    <EmbeddedTerminal {stream} />
 </div>
 
 <style>

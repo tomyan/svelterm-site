@@ -48,14 +48,14 @@
 
     function recalculateSize() {
         if (!container || !terminal || !computedCharWidth) return
-        // The preview-screen has width:{100/zoom}% and transform:scale(zoom).
-        // Width: the percentage resolves correctly (cross-axis in column flex),
-        //   so clientWidth reflects the content viewport.
-        // Width changes with zoom (fewer cols at higher zoom).
-        // Height: rows stay fixed — the terminal scrolls vertically.
         const newWidth = container.clientWidth
         const newCols = Math.max(10, Math.floor(newWidth / computedCharWidth))
         const newHeight = container.clientHeight
+        // If the container hasn't been laid out yet (height: 100% of a parent
+        // whose own size is still resolving), bail rather than locking the
+        // terminal at the Math.max(5, …) floor — a later observer callback
+        // will fire when the size actually settles.
+        if (newHeight <= 0) return
         const newRows = Math.max(5, Math.floor(newHeight / lineHeight))
         if (newCols !== cols || newRows !== rows) {
             cols = newCols
@@ -130,6 +130,12 @@
         const resizeObserver = new ResizeObserver(() => recalculateSize())
         resizeObserver.observe(container)
 
+        // Belt-and-braces: the parent .preview-screen gets its `height: Npx`
+        // wired up in Playground.onMount, which can land after we observe.
+        // Force a recalc on the next frame so the terminal lands at the
+        // settled height instead of the initial measurement.
+        requestAnimationFrame(() => recalculateSize())
+
         // Load svelterm and svelte fork runtime via .js file
         // to avoid svelte/internal import ban in .svelte files
         loadRuntime()
@@ -150,6 +156,7 @@
             // vt100` at its own top level, so it has to exist when
             // loadEmbeddedTerminalRegion imports the blob.
             ;(window as any).__svelterm_terminal_modules__ = {
+                svelte: runtime.svelte,
                 internal: runtime.svelteInternal,
                 renderer: runtime.sveltermCore,
                 vt100: runtime.sveltermVt100,
@@ -229,8 +236,11 @@
             // Rewrite: import { x } from 'svelte/...' → const { x } = __internal__
             code = code.replace(/import\s+\{([^}]+)\}\s+from\s+['"]svelte\/[^'"]*['"]/g,
                 'const {$1} = __internal__')
+            // Rewrite: import { x } from 'svelte' (public API: onDestroy, getContext,
+            // etc.) → const { x } = __svelte__. The internal client module does NOT
+            // export the public lifecycle helpers, so this must route separately.
             code = code.replace(/import\s+\{([^}]+)\}\s+from\s+['"]svelte['"]/g,
-                'const {$1} = __internal__')
+                'const {$1} = __svelte__')
             // Rewrite: import { useRenderTarget } from '@svelterm/core' → const { ... } = __renderer__
             code = code.replace(/import\s+\{([^}]+)\}\s+from\s+['"]\@svelterm\/core['"]/g,
                 'const {$1} = __renderer__')
@@ -252,6 +262,7 @@
 
             // Wrap with runtime references
             const moduleCode = [
+                'const __svelte__ = window.__svelterm_terminal_modules__.svelte;',
                 'const __internal__ = window.__svelterm_terminal_modules__.internal;',
                 'const __renderer__ = window.__svelterm_terminal_modules__.renderer;',
                 'const __v86__ = { v86Stream: window.__svelterm_terminal_modules__.v86Stream };',

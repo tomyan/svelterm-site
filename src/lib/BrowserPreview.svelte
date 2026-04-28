@@ -109,6 +109,7 @@
             ':root { color-scheme: dark; --fg: #e6edf3; --bg: #0d1117; --border: #555; --border-form: #30363d; }',
             '@media (prefers-color-scheme: light) { :root { color-scheme: light; --fg: #1a1a2e; --bg: #ffffff; --border: #999; --border-form: #d0d7de; } }',
             '* { margin: 0; padding: 0; box-sizing: border-box; }',
+            'html, body, #app { height: 100%; }',
             'body { font-family: system-ui, -apple-system, sans-serif; padding: 1rem; color: var(--fg); background: var(--bg); }',
             'button { cursor: pointer; padding: 0.25rem 0.75rem; background: transparent; color: inherit; border: 1px solid var(--border); border-radius: 4px; }',
             'input, textarea { font-family: inherit; padding: 0.25rem; background: var(--bg); color: var(--fg); border: 1px solid var(--border-form); border-radius: 4px; }',

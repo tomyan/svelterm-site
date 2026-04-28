@@ -45,6 +45,7 @@ export async function loadEmbeddedTerminalRegion(): Promise<any> {
 
     const rewritten = rewriteImports(compiled.js.code)
     const moduleCode = [
+        'const __svelte__ = window.__svelterm_terminal_modules__.svelte;',
         'const __internal__ = window.__svelterm_terminal_modules__.internal;',
         'const __renderer__ = window.__svelterm_terminal_modules__.renderer;',
         'const __vt100__ = window.__svelterm_terminal_modules__.vt100;',
@@ -74,9 +75,11 @@ function rewriteImports(code: string): string {
         /import\s+\{([^}]+)\}\s+from\s+['"]svelte\/[^'"]*['"]/g,
         'const {$1} = __internal__',
     )
+    // Public Svelte API (onDestroy, onMount, getContext, …) lives on the
+    // top-level `svelte` module, not in svelte/internal/client.
     out = out.replace(
         /import\s+\{([^}]+)\}\s+from\s+['"]svelte['"]/g,
-        'const {$1} = __internal__',
+        'const {$1} = __svelte__',
     )
     out = out.replace(
         /import\s+([\w$]+)\s+from\s+['"]\@svelterm\/core['"]/g,
