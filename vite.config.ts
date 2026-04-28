@@ -14,9 +14,4 @@ export default defineConfig({
 			{ find: '@svelterm/core', replacement: path.resolve('../svelterm/src/renderer/default.ts') },
 		],
 	},
-	optimizeDeps: {
-		// Pre-bundle v86 so the first dynamic import in the Shell demo doesn't
-		// trigger a full-page reload that resets the launch state.
-		include: ['v86'],
-	},
 });
