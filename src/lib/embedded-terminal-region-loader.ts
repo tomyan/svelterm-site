@@ -1,8 +1,8 @@
 /**
- * Compile vt100's EmbeddedTerminalRegion.svelte at runtime with the
- * svelterm custom renderer enabled, then evaluate it as a module so the
- * playground can hand the resulting component to demos that target the
- * terminal preview. Done at site startup; the result is cached.
+ * Compile vt100's EmbeddedTerminalRegion.svelte with the svelterm custom
+ * renderer enabled. Returns the compiled JS string that the iframe can
+ * evaluate as a Blob module — its bare imports have been rewritten to
+ * read from the iframe's `window.__rt__` runtime object.
  */
 
 import { compile, preprocess, type PreprocessorGroup } from 'svelte/compiler'
@@ -25,10 +25,10 @@ const tsPreprocessor: PreprocessorGroup = {
     },
 }
 
-let cachedComponent: any = null
+let cachedCode: string | null = null
 
-export async function loadEmbeddedTerminalRegion(): Promise<any> {
-    if (cachedComponent) return cachedComponent
+export async function compileEmbeddedTerminalRegion(): Promise<string> {
+    if (cachedCode) return cachedCode
 
     const { code: processed } = await preprocess(regionSource, [tsPreprocessor], {
         filename: 'EmbeddedTerminalRegion.svelte',
@@ -43,24 +43,8 @@ export async function loadEmbeddedTerminalRegion(): Promise<any> {
         },
     } as any)
 
-    const rewritten = rewriteImports(compiled.js.code)
-    const moduleCode = [
-        'const __svelte__ = window.__svelterm_terminal_modules__.svelte;',
-        'const __internal__ = window.__svelterm_terminal_modules__.internal;',
-        'const __renderer__ = window.__svelterm_terminal_modules__.renderer;',
-        'const __vt100__ = window.__svelterm_terminal_modules__.vt100;',
-        rewritten,
-    ].join('\n')
-
-    const blob = new Blob([moduleCode], { type: 'text/javascript' })
-    const url = URL.createObjectURL(blob)
-    try {
-        const mod = await import(/* @vite-ignore */ url)
-        cachedComponent = mod.default
-        return cachedComponent
-    } finally {
-        URL.revokeObjectURL(url)
-    }
+    cachedCode = rewriteImports(compiled.js.code)
+    return cachedCode
 }
 
 function rewriteImports(code: string): string {
@@ -69,27 +53,23 @@ function rewriteImports(code: string): string {
     out = out.replace(/^import\s+['"]\@svelterm\/core['"];?\s*$/gm, '')
     out = out.replace(
         /import\s+\*\s+as\s+([\w$]+)\s+from\s+['"]svelte[^'"]*['"]/g,
-        'const $1 = __internal__',
+        'const $1 = window.__rt__.svelteInternal',
     )
     out = out.replace(
         /import\s+\{([^}]+)\}\s+from\s+['"]svelte\/[^'"]*['"]/g,
-        'const {$1} = __internal__',
+        'const {$1} = window.__rt__.svelteInternal',
     )
-    // Public Svelte API (onDestroy, onMount, getContext, …) lives on the
-    // top-level `svelte` module, not in svelte/internal/client.
     out = out.replace(
         /import\s+\{([^}]+)\}\s+from\s+['"]svelte['"]/g,
-        'const {$1} = __svelte__',
+        'const {$1} = window.__rt__.svelte',
     )
     out = out.replace(
         /import\s+([\w$]+)\s+from\s+['"]\@svelterm\/core['"]/g,
-        'const $1 = __renderer__.default',
+        'const $1 = window.__rt__.sveltermCore.default',
     )
-    // Region.svelte's relative imports (./terminal.js, ./cell.js, ...)
-    // resolve into vt100's main entry, which the runtime exposes.
     out = out.replace(
         /import\s+\{([^}]+)\}\s+from\s+['"]\.\/[\w-]+\.js['"]/g,
-        'const {$1} = __vt100__',
+        'const {$1} = window.__rt__.vt100',
     )
     return out
 }

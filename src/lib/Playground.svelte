@@ -1,8 +1,8 @@
 <script lang="ts">
 	import CodeEditor from './CodeEditor.svelte';
-	import TerminalPreview from './TerminalPreview.svelte';
-	import BrowserPreview from './BrowserPreview.svelte';
+	import PreviewIframe from './PreviewIframe.svelte';
 	import { compileComponent } from './compiler.js';
+	import { compileEmbeddedTerminalRegion } from './embedded-terminal-region-loader.js';
 	import { onMount } from 'svelte';
 
 	import type { Example } from './examples/index.js';
@@ -37,6 +37,10 @@
 	}
 	let terminalJs = $state('');
 	let terminalCss = $state('');
+	let browserJs = $state('');
+	let browserCss = $state('');
+	let regionCode = $state<string | undefined>(undefined);
+	let compileError = $state('');
 	let debounceTimer: ReturnType<typeof setTimeout>;
 
 	// Layout state
@@ -91,11 +95,28 @@
 		if (!src.trim()) return;
 		try {
 			const result = await compileComponent(src);
+			if (result.error) {
+				compileError = result.error;
+				return;
+			}
+			compileError = '';
+			if (result.browser) {
+				browserJs = result.browser.js;
+				browserCss = result.browser.css;
+			}
 			if (result.terminal) {
 				terminalJs = result.terminal.js;
 				terminalCss = result.terminal.css;
+				// Compile the Region lazily on first terminal-mode compile.
+				if (regionCode === undefined) {
+					compileEmbeddedTerminalRegion()
+						.then((c) => { regionCode = c; })
+						.catch((e) => console.error('Region compile failed:', e));
+				}
 			}
-		} catch {}
+		} catch (e: any) {
+			compileError = e?.message ?? String(e);
+		}
 	}
 
 	function startDragSplit(e: PointerEvent) {
@@ -199,7 +220,15 @@
 				{/if}
 			</div>
 			<div class="preview-screen" style="transform: scale({zoom}); transform-origin: top left; width: {100/zoom}%; height: {terminalPanelHeight/zoom}px;">
-				<TerminalPreview {terminalJs} {terminalCss} {zoom} onResize={(c, r) => { termCols = c; termRows = r; }} />
+				{#key activeIndex}
+					<PreviewIframe
+						mode="terminal"
+						code={terminalJs}
+						css={terminalCss}
+						{regionCode}
+						onSize={(c, r) => { termCols = c; termRows = r; }}
+					/>
+				{/key}
 			</div>
 		</div>
 
@@ -211,7 +240,13 @@
 				{/if}
 			</div>
 			<div class="preview-screen" bind:this={browserScreen} style="transform: scale({zoom}); transform-origin: top left; width: {100/zoom}%; height: {previewHeight/zoom}px;">
-				<BrowserPreview source={editableCode} />
+				{#key activeIndex}
+					<PreviewIframe
+						mode="browser"
+						code={browserJs}
+						css={browserCss}
+					/>
+				{/key}
 			</div>
 		</div>
 	</div>
