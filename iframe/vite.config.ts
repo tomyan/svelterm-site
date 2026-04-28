@@ -12,6 +12,11 @@ const PARENT_ORIGINS = [
 
 export default defineConfig({
     root: __dirname,
+    // Separate dep-optimization cache from the parent vite, which shares
+    // node_modules/.vite/deps by default and would clobber our v86 bundle
+    // (the parent doesn't `include: ['v86']`, so its rewrite drops the
+    // iframe's optimized v86.js and dynamic imports start 404'ing).
+    cacheDir: path.resolve(__dirname, '../node_modules/.vite-iframe'),
     plugins: [svelte()],
     resolve: {
         alias: [
