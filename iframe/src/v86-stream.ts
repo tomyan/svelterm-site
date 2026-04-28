@@ -1,9 +1,19 @@
 import type { TerminalStream } from '@svelterm/vt100'
 
+interface V86Bus {
+    send(name: string, payload: any): void
+}
+
 interface V86Instance {
     add_listener(name: string, fn: (...args: any[]) => void): void
     serial_send_bytes(uart: number, bytes: Uint8Array): void
     destroy(): void
+    // Internal bus exposed by libv86 (N.prototype.add_listener delegates
+    // to this.bus.register). v86 has no public typed wrapper for sending
+    // into virtio-console, so we reach through bus.send directly. Events:
+    //   virtio-console0-input-bytes  (Uint8Array — bytes into the guest)
+    //   virtio-console0-resize       ([cols, rows] — fires SIGWINCH)
+    bus: V86Bus
 }
 
 interface V86Module {
@@ -55,9 +65,9 @@ export function createV86StreamFactory(): V86StreamFactory {
                 vga_memory_size: 2 * 1024 * 1024,
                 bios: { url: '/v86/seabios.bin' },
                 vga_bios: { url: '/v86/vgabios.bin' },
-                bzimage: { url: '/v86/buildroot-bzimage.bin' },
-                cmdline: 'tsc=reliable mitigations=off random.trust_cpu=on console=ttyS0',
-                filesystem: {},
+                bzimage: { url: '/v86/svelterm-bzimage.bin' },
+                cmdline: 'tsc=reliable mitigations=off random.trust_cpu=on console=hvc0 quiet loglevel=0',
+                virtio_console: true,
                 autostart: true,
                 disable_keyboard: true,
                 disable_mouse: true,
@@ -66,12 +76,10 @@ export function createV86StreamFactory(): V86StreamFactory {
         return emulator
     }
 
-    function v86Stream({ uart }: { uart: 0 | 1 | 2 | 3 } = { uart: 0 }): TerminalStream {
+    function v86Stream(_opts?: { uart: 0 | 1 | 2 | 3 }): TerminalStream {
         const outputListeners = new Set<(bytes: Uint8Array) => void>()
         const closeListeners = new Set<(reason: Error | null) => void>()
         let buffered: Uint8Array | null = null
-        let pendingBytes: number[] = []
-        let flushScheduled = false
         let closed = false
         let attached: V86Instance | null = null
 
@@ -79,27 +87,15 @@ export function createV86StreamFactory(): V86StreamFactory {
         loadV86().then(({ V86Module, wasmUrl }) => {
             if (closed) return
             attached = getOrCreateEmulator(V86Module, wasmUrl)
-            attached.add_listener(`serial${uart}-output-byte`, (byte: number) => {
+            attached.add_listener('virtio-console0-output-bytes', (bytes: Uint8Array) => {
                 if (closed) return
-                pendingBytes.push(byte)
-                if (!flushScheduled) {
-                    flushScheduled = true
-                    queueMicrotask(flush)
+                if (outputListeners.size === 0) {
+                    buffered = buffered ? concat(buffered, bytes) : bytes
+                } else {
+                    for (const cb of outputListeners) cb(bytes)
                 }
             })
         })
-
-        function flush() {
-            flushScheduled = false
-            if (pendingBytes.length === 0) return
-            const bytes = new Uint8Array(pendingBytes)
-            pendingBytes = []
-            if (outputListeners.size === 0) {
-                buffered = buffered ? concat(buffered, bytes) : bytes
-            } else {
-                for (const cb of outputListeners) cb(bytes)
-            }
-        }
 
         return {
             onOutput(listener) {
@@ -112,10 +108,11 @@ export function createV86StreamFactory(): V86StreamFactory {
             },
             write(bytes) {
                 if (closed || !attached) return
-                attached.serial_send_bytes(uart, bytes)
+                attached.bus.send('virtio-console0-input-bytes', bytes)
             },
-            resize(_cols, _rows) {
-                // v86 serial console has no window-size channel.
+            resize(cols, rows) {
+                if (closed || !attached) return
+                attached.bus.send('virtio-console0-resize', [cols, rows])
             },
             onClose(listener) {
                 closeListeners.add(listener)
