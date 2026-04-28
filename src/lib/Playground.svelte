@@ -208,7 +208,7 @@
 	</div>
 
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
-	<div class="divider-v" style="left: calc({splitRatio * 100}% - 3px);" onpointerdown={startDragSplit}></div>
+	<div class="divider-v" style="left: calc({splitRatio * 100}% - 8px);" onpointerdown={startDragSplit}></div>
 
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div class="previews" onwheel={(e) => e.stopPropagation()}>

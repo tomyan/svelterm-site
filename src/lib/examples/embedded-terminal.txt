@@ -25,7 +25,7 @@
         box-sizing: border-box;
 
         @media (display-mode: terminal) {
-            padding: 0;
+            padding: 1cell;
             background: default;
         }
     }
