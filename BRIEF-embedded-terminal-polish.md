@@ -28,13 +28,26 @@ independently.
 
 User has not pushed anything; do not push without confirmation.
 
-## The six issues
+## The six issues — recommended order
 
-Tackle each independently. Most likely order is the one given (smallest
-blast radius first, biggest architectural change last). None blocks
-another, but #5 will probably touch the harness for #1, #3, #6 —
-worth thinking about whether to do #5 first if you anticipate
-collisions.
+**Do #5 (iframe + origin isolation) first.** It's the biggest single
+piece of work but it's the substrate that #1, #2, #3, #6 all build
+on — once both previews are iframes with a uniform postMessage
+channel, those four become "wire this once in the runtime" rather
+than "implement twice across two divergent harnesses". The "smallest
+blast radius first" instinct is wrong here.
+
+**Do #4 whenever** — v86 mount-failure flake is orthogonal to the
+harness. Pick it up alongside any of the others.
+
+**Then #1, #2, #3, #6 fall out cleanly on the new substrate:**
+padding lives in the iframe template; resize is one
+SIGWINCH-equivalent channel both previews call; focus is a single
+ring + one keyboard postMessage path; theme is one postMessage on
+theme change.
+
+The numbering below reflects how they were originally surfaced, not
+the order to tackle them.
 
 ### 1. Padding parity, and a clipping bug
 
