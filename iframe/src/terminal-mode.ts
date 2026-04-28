@@ -49,12 +49,15 @@ export function mountTerminal(root: HTMLElement): (msg: ParentMessage) => void {
                 postToParent({ kind: 'size', cols: c, rows: r })
             },
             onMouseInput: (data: string) => {
-                const sink = (globalThis as any).__svtTerminalInputSink
-                if (typeof sink === 'function') {
-                    sink(data)
-                } else if (currentIO) {
-                    currentIO.feedInput(data)
-                }
+                // Mouse stays on the svelterm path. Routing it to the
+                // input sink would pump SGR mouse sequences at the
+                // embedded shell on every pixel of mouse movement —
+                // and a vanilla busybox prompt that hasn't enabled
+                // mouse mode (`\x1b[?1000h`) just types those bytes
+                // at the cursor as garbage. Once we want vi-with-mouse
+                // inside v86 we'll parse the guest's mode-enable
+                // sequence and gate this on it.
+                if (currentIO) currentIO.feedInput(data)
             },
             onKeyInput: (data: string) => {
                 // If an EmbeddedTerminalRegion (or other in-app terminal
