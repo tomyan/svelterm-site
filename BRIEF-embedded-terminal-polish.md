@@ -44,27 +44,24 @@ harness. Pick it up alongside any of the others.
 
 The numbering below reflects how the issues were originally surfaced.
 
-### 1. Padding parity, and a clipping bug
+### 1. Padding parity, and a clipping bug — DONE (slice 5c)
 
-The two previews should have a similar amount of padding around the
-embedded terminal — currently the example uses
-`padding: 8px` for browser and `padding: 0` in the
-`@media (display-mode: terminal)` override.
+Resolved by `a928d40` (svelterm-site) + `ed87e70` (svelterm). The
+"off-by-one on the svelterm side" hypothesis turned out to be wrong:
+diagnostics showed cell 0 painted correctly at x=0 with the right
+glyph. The culprit was `.divider-v` in `Playground.svelte` — `left:
+calc(splitRatio*100% - 3px)` with `z-index: 10` placed its right edge
+5px past the column boundary, sitting on top of the leftmost
+~half-cell of every preview row. Browser mode hid the symptom because
+`.shell { padding: 8px }` kept content away from the divider; terminal
+mode at `padding: 0` had cells flush against it.
 
-There's a bug to chase while you're in there: with `padding: 0` in the
-example's `.shell`, the **browser** preview happily shows the content
-flush to the wrapper edge, but the **terminal** preview clips the
-leftmost column. So:
-
-- The terminal preview is missing one cell of horizontal slop somewhere
-  — possibly in `<svt-region>`'s box, in the example's `.shell` flow,
-  or in svelterm's CSS `box-sizing`/inset handling.
-- Reproduce by removing the `@media (display-mode: terminal)` override
-  in the example and observing both. Or just by setting both paths to
-  `padding: 0` and noting the asymmetry.
-
-Fix: settle on a small padding for both (or none for both), and find
-the off-by-one that's eating the leftmost column on the svelterm side.
+Fix: `splitRatio*100% - 8px` so the divider sits entirely in the
+editor column. Padding parity: `padding: 1cell` in terminal mode
+(matches `8px` in browser visually). svelterm gained minimal
+`box-sizing` parsing (default `border-box`, real `content-box`
+semantics) so `.shell { box-sizing: border-box }` is now honoured by
+both targets.
 
 ### 2. Resize semantics — fixed cells + propagate to the shell
 
