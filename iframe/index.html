@@ -6,6 +6,28 @@
         <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'wasm-unsafe-eval'; worker-src 'self' blob:; connect-src 'self' ws: wss:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:" />
         <meta http-equiv="Permissions-Policy" content="clipboard-read=(), clipboard-write=(), camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=(), bluetooth=(), midi=(), display-capture=()" />
         <style>
+            /* Mirror the parent's theme so the preview body matches the
+               surrounding page chrome. data-theme is set by the iframe's
+               applyTheme() on a parent-driven theme message; when unset
+               (auto), fall back to OS preference. Colors track
+               src/routes/+layout.svelte. */
+            :root {
+                color-scheme: dark;
+                background: #0d1117;
+                color: #e6edf3;
+            }
+            :root[data-theme="light"] {
+                color-scheme: light;
+                background: #ffffff;
+                color: #1a1a2e;
+            }
+            @media (prefers-color-scheme: light) {
+                :root:not([data-theme]) {
+                    color-scheme: light;
+                    background: #ffffff;
+                    color: #1a1a2e;
+                }
+            }
             html, body { margin: 0; padding: 0; height: 100%; }
             body { font-family: system-ui, -apple-system, sans-serif; }
             #root { width: 100%; height: 100%; }

@@ -10,18 +10,12 @@ import { run, InProcessIO } from '@svelterm/core/app'
 import TerminalShell from './TerminalShell.svelte'
 import { rewriteImports, evaluateBlobModule } from './runtime.js'
 import { createV86StreamFactory } from './v86-stream.js'
-import { applyTheme } from './theme.js'
+import { applyTheme, resolveScheme } from './theme.js'
 import type { ParentMessage, ThemeMode } from './protocol.js'
 import { postToParent } from './main.js'
 
-function isLight(mode: ThemeMode): boolean {
-    if (mode === 'light') return true
-    if (mode === 'dark') return false
-    return typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: light)').matches
-}
-
-function termColors(mode: ThemeMode) {
-    return isLight(mode)
+function termColors(scheme: 'dark' | 'light') {
+    return scheme === 'light'
         ? { foreground: '#1a1a2e', background: '#ffffff' }
         : { foreground: '#c9d1d9', background: '#0d1117' }
 }
@@ -38,8 +32,10 @@ export function mountTerminal(root: HTMLElement): (msg: ParentMessage) => void {
     let currentCleanup: (() => void) | null = null
     let regionLoaded = false
     let themeMode: ThemeMode = 'auto'
+    let appliedScheme: 'dark' | 'light' = resolveScheme(themeMode)
+    let lastMount: { code: string; css: string; regionCode?: string } | null = null
 
-    const colors = termColors(themeMode)
+    const colors = termColors(appliedScheme)
 
     mount(TerminalShell, {
         target: root,
@@ -64,40 +60,55 @@ export function mountTerminal(root: HTMLElement): (msg: ParentMessage) => void {
         },
     })
 
+    async function applyMount(payload: { code: string; css: string; regionCode?: string }) {
+        tearDown()
+        const terminal = shellHandle?.getTerminal()
+        try {
+            if (payload.regionCode && !regionLoaded) {
+                const regionMod = await evaluateBlobModule(payload.regionCode)
+                window.__rt__.embeddedTerminalRegion = regionMod.default
+                regionLoaded = true
+            }
+            if (!terminal) throw new Error('Terminal not yet initialized')
+            terminal.write('\x1b[2J\x1b[H')
+            const code = rewriteImports(payload.code)
+            const mod = await evaluateBlobModule(code)
+            if (!mod.default) throw new Error('No default export found')
+
+            const io = new InProcessIO(cols, rows)
+            io.onOutput = (data: string) => terminal.write(data)
+            currentIO = io
+            appliedScheme = resolveScheme(themeMode)
+            currentCleanup = run(mod.default, {
+                css: payload.css,
+                fullscreen: false,
+                mouse: true,
+                io,
+                colorScheme: appliedScheme,
+            })
+            terminal.write('\x1b[?25l')
+        } catch (e: any) {
+            postToParent({ kind: 'error', message: e.message ?? String(e) })
+        }
+    }
+
     return async (msg) => {
         if (msg.kind === 'mount') {
-            tearDown()
-            const terminal = shellHandle?.getTerminal()
-            try {
-                if (msg.regionCode && !regionLoaded) {
-                    const regionMod = await evaluateBlobModule(msg.regionCode)
-                    window.__rt__.embeddedTerminalRegion = regionMod.default
-                    regionLoaded = true
-                }
-                if (!terminal) throw new Error('Terminal not yet initialized')
-                terminal.write('\x1b[2J\x1b[H')
-                const code = rewriteImports(msg.code)
-                const mod = await evaluateBlobModule(code)
-                if (!mod.default) throw new Error('No default export found')
-
-                const io = new InProcessIO(cols, rows)
-                io.onOutput = (data: string) => terminal.write(data)
-                currentIO = io
-                currentCleanup = run(mod.default, {
-                    css: msg.css,
-                    fullscreen: false,
-                    mouse: true,
-                    io,
-                })
-                terminal.write('\x1b[?25l')
-            } catch (e: any) {
-                postToParent({ kind: 'error', message: e.message ?? String(e) })
-            }
+            lastMount = { code: msg.code, css: msg.css, regionCode: msg.regionCode }
+            await applyMount(lastMount)
         } else if (msg.kind === 'theme') {
             themeMode = msg.mode
             applyTheme(msg.mode)
-            const c = termColors(msg.mode)
+            const scheme = resolveScheme(themeMode)
+            const c = termColors(scheme)
             shellHandle?.setColors(c.foreground, c.background)
+            // Only replay the user's mount if the resolved scheme actually
+            // changed — otherwise the initial 'auto' theme message from the
+            // parent would tear down a fresh mount (and any v86 emulator
+            // booting inside) before its first frame rendered.
+            if (lastMount && scheme !== appliedScheme) {
+                await applyMount(lastMount)
+            }
         } else if (msg.kind === 'destroy') {
             tearDown()
         }
