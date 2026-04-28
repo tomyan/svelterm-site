@@ -55,6 +55,13 @@ export function mountBrowser(root: HTMLElement): (msg: ParentMessage) => void {
             styleEl.remove()
             styleEl = null
         }
+        // Svelte's append_styles() injects scoped CSS into the document head
+        // keyed by hash, and never removes it on unmount. Without this sweep,
+        // each remount accumulates another <style> element and the head grows
+        // unboundedly as the user types.
+        for (const el of document.head.querySelectorAll('style[id^="svelte-"]')) {
+            el.remove()
+        }
         v86Factory.destroy()
         root.innerHTML = ''
     }

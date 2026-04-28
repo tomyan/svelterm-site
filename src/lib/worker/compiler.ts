@@ -49,12 +49,19 @@ self.onmessage = async (event: MessageEvent<CompileRequest>) => {
         return
     }
 
-    // Browser compilation — standard client mode
+    // Browser compilation — standard client mode.
+    // Custom cssHash so the hash reflects CSS content rather than the
+    // (constant) filename: the persistent preview iframe stays mounted
+    // across compiles, and Svelte's append_styles() dedups by hash. With
+    // a filename-based hash, edits to CSS produce the same hash, the
+    // dedup skips the new style, and the old CSS lingers forever.
     try {
         const browserResult = compile(processed, {
             generate: 'client',
             css: 'injected',
             filename: 'App.svelte',
+            cssHash: ({ css, hash }: { css: string; hash: (input: string) => string }) =>
+                `svelte-${hash(css)}`,
             experimental: { async: true },
         } as any)
         result.browser = {
