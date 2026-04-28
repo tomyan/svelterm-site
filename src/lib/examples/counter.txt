@@ -32,9 +32,10 @@
         color: var(--text);
 
         @media (display-mode: browser) {
-            gap: 0.75rem;
-            padding: 1.5rem;
-            font-family: system-ui, sans-serif;
+            margin: 0 1ch;
+            gap: 1em;
+            padding: 1em 2ch;
+            font-family: ui-monospace, 'SF Mono', Menlo, monospace;
             border: 2px solid var(--accent);
             border-radius: 8px;
         }
@@ -54,11 +55,12 @@
     button {
         color: var(--text);
         border-color: var(--btn-border);
+        background: transparent;
+        font-family: inherit;
 
         @media (display-mode: browser) {
             border: 1px solid var(--btn-border);
-            border-radius: 4px;
-            padding: 0.4rem 1.2rem;
+            padding: 0 2ch;
             cursor: pointer;
             font-size: inherit;
         }
