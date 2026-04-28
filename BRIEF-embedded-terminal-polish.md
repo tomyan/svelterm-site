@@ -1,9 +1,10 @@
-# Brief: embedded-terminal demo — six remaining issues
+# Brief: embedded-terminal demo — four remaining issues
 
-The slice 3 demo now renders end-to-end in both previews using top-level
-await. Six follow-up issues remain — none are blockers, but they're the
-shortlist before this can be the landing demo. Each can be tackled
-independently.
+The demo renders end-to-end in both previews from a separate-origin
+iframe substrate. The parent's theme toggle, CSS-edit live updates,
+and the iframe vite dep cache are all wired correctly. Four follow-up
+issues remain — none are blockers, but they're the shortlist before
+this can be the landing demo. Each can be tackled independently.
 
 ## Read first, in this order
 
@@ -16,38 +17,32 @@ independently.
 
 ## State on disk (all committed, none pushed)
 
-- **svelterm** `0c125c8` — svt-region fill primitive, console gating,
-  Renderer type drop, SvtRegionNode.markDirty.
-- **svelterm-vt100** `56f443b` — `Attr` is now a non-const enum,
-  Terminal.resize/constructor throw on non-positive dims.
-- **svelterm-site** `aa68841` — TLA example, svelte-public-API
-  rewrites in both previews + region loader, iframe body height
-  chain, Playground sizing bail-out.
+- **svelterm** `3353219` — `RunOptions.colorScheme` override skips
+  OSC 11 polling when the host pins a scheme (used by the browser
+  preview's terminal-mode).
+- **svelterm-vt100** `56f443b` — `Attr` is a non-const enum,
+  `Terminal.resize/constructor` throw on non-positive dims.
+- **svelterm-site** `2fb7c8a` — slice 5a iframe substrate, slice 5b
+  theme propagation, vite cacheDir split, CSS-edit live update fix
+  via content-based cssHash + style sweep, counter example restyled
+  to match terminal.
 - **svelte-fork** `08575d17e` — merged upstream/svelte-custom-renderer
   (was 48 commits behind).
 
-User has not pushed anything; do not push without confirmation.
+User has not pushed anything; do not push without confirmation. User
+plans to rewrite commit times before pushing, so commit messages
+should be self-contained and not assume current ordering.
 
-## The six issues — recommended order
+## The four issues — recommended order
 
-**Do #5 (iframe + origin isolation) first.** It's the biggest single
-piece of work but it's the substrate that #1, #2, #3, #6 all build
-on — once both previews are iframes with a uniform postMessage
-channel, those four become "wire this once in the runtime" rather
-than "implement twice across two divergent harnesses". The "smallest
-blast radius first" instinct is wrong here.
+The substrate work (slice 5a) and theme propagation (slice 5b, brief
+#6) are done. The remaining issues are all "wire this once in the
+iframe runtime" rather than "implement twice across two harnesses".
 
 **Do #4 whenever** — v86 mount-failure flake is orthogonal to the
 harness. Pick it up alongside any of the others.
 
-**Then #1, #2, #3, #6 fall out cleanly on the new substrate:**
-padding lives in the iframe template; resize is one
-SIGWINCH-equivalent channel both previews call; focus is a single
-ring + one keyboard postMessage path; theme is one postMessage on
-theme change.
-
-The numbering below reflects how they were originally surfaced, not
-the order to tackle them.
+The numbering below reflects how the issues were originally surfaced.
 
 ### 1. Padding parity, and a clipping bug
 
@@ -122,73 +117,49 @@ the first line of the boot output we see. It looks flaky (the demo
 still works without it, but the line shouldn't be there in the
 finished demo).
 
-Check the v86 init args (`/Users/tom/projects/svelterm-site/src/lib/v86-stream.ts`):
-the `filesystem: {}` config or some race in our setup is probably
+Check the v86 init args (`iframe/src/v86-stream.ts`): the
+`filesystem: {}` config or some race in our setup is probably
 provoking the mount attempt before host9p is ready. Either remove the
 filesystem mount entirely (we don't use it for the shell demo) or
 serialise the boot so it doesn't race.
 
-### 5. Iframe both previews; separate origin
+## What's done since the previous brief
 
-Right now the **terminal** preview compiles user code and evaluates it
-in the **main page's JS context** — which means a malicious example
-could touch the playground state or anything else on the page. The
-browser preview already runs in a same-origin iframe via `srcdoc`.
+- **#5 (iframe + origin isolation)** — slice 5a, `5459fd4`. Both
+  previews are cross-origin iframes from `iframe/` (127.0.0.1:5174 in
+  dev, planned svelterm-untrusted.net in prod). postMessage protocol
+  in `iframe/src/protocol.ts`.
+- **#6 (theme propagation)** — slice 5b, `118607d`. Parent posts
+  theme messages, iframe drives `<html data-theme>` + explicit
+  `color-scheme`. svelterm gained `RunOptions.colorScheme` so the
+  terminal preview can pin the scheme without OSC polling. User CSS
+  `@media (prefers-color-scheme: x)` rules are duplicated under
+  `:root[data-theme="x"]` by the iframe runtime.
+- **Iframe vite cacheDir collision** — `dd94b40`. Both vite servers
+  shared `node_modules/.vite/deps`; parent's run dropped the iframe's
+  v86 bundle and dynamic imports 404'd. Iframe now uses
+  `node_modules/.vite-iframe`.
+- **CSS-edit live update regression** — `fe6b3d1`. Slice 5a's
+  persistent iframe regressed live CSS updates because Svelte's
+  default `cssHash` hashes the filename, so `append_styles()`'s
+  dedup-by-hash skipped each new style. Worker now passes a custom
+  `cssHash` over CSS content; iframe sweeps stale
+  `style[id^="svelte-"]` to keep head bounded.
+- **Counter example styling** — `2fb7c8a`. Browser preview now uses
+  monospace + matched margin/padding/units so it reads as a
+  translation of the terminal version, with `background: transparent`
+  on buttons.
 
-Two changes:
-- Run the terminal preview in its own iframe too, the same way the
-  browser preview does. The compiled blob+postMessage handoff should
-  port without much friction.
-- Move both iframes to a separate origin so user code can't read or
-  mutate the parent's window. The standard pattern is a different
-  subdomain with its own bundle of the runtime, served from
-  `playground.svelterm.dev` (or `[hash].svelterm.dev` per-demo for
-  full isolation). Alternative: a sandboxed iframe with the
-  `allow-scripts` token but *not* `allow-same-origin` — that gives
-  origin isolation without DNS work.
+## Standing customRenderer caveats (still real, not blocking)
 
-Side effect of doing this: today the iframe inherits a bunch of styles
-from the parent (vite-plugin-svelte's scoped style elements are cloned
-in for vt100). With a separate origin you can no longer reach across,
-so the runtime needs to bundle whatever CSS it actually needs and ship
-it as part of the iframe's own document. **This is the natural moment
-to level the styling between the two previews** — they should look
-identical in terms of typography, padding, etc.
-
-### 6. Browser preview ignores light theme
-
-When the playground is set to light mode, the browser preview stays
-dark. The terminal preview honours the theme.
-
-The iframe gets parent-document `<style data-vite-dev-id>` cloned in
-once at mount time (see `BrowserPreview.svelte` `iframeHtml()` and the
-mount handler). Theme changes on the parent don't reach the iframe
-because (a) the iframe's `:root` color-scheme block is hardcoded with
-`@media (prefers-color-scheme: light)` rather than driven by the
-parent's `theme.svelte.js`, and (b) we don't re-clone or update the
-cloned styles on theme change.
-
-Fix: drive the iframe's theme from a postMessage on theme change, or
-expose the theme as a CSS variable on the iframe's `<html>` and have
-the iframe respect it directly. (Issue #5 will likely change how the
-iframe is built; pick whichever fits the new model.)
-
-## What's *not* an issue any more — things the previous brief was wrong about
-
-- **`{#if EmbeddedTerminal}` doesn't re-evaluate after async `$.set`** —
-  not a customRenderer bug. It works fine post-merge. The example was
-  failing because of `onDestroy` rewrite + `Attr` const-enum erasure.
-- **`css: 'injected'` is rejected in customRenderer** — still true,
-  still in `phases/2-analyze/index.js`. Not blocking us; we use
-  `css: 'external'` everywhere.
-- **`bind:` on elements is rejected in customRenderer** — still true;
-  we work around with `use:` actions where needed.
-- **`without_renderer` wraps imported component invocations** — still
-  true; the precompile-with-customRenderer trick still applies (the
-  Region's body re-pushes the svelterm renderer at function entry).
-
-So the catalog of customRenderer incompatibilities still has those
-three real entries, but they're not what blocks the demo today.
+- `css: 'injected'` is rejected in customRenderer (in
+  `phases/2-analyze/index.js`). We use `css: 'external'` for the
+  terminal compile and `css: 'injected'` for the browser compile.
+- `bind:` on elements is rejected in customRenderer; work around with
+  `use:` actions.
+- `without_renderer` wraps imported component invocations; the
+  precompile-with-customRenderer trick still applies (the Region's
+  body re-pushes the svelterm renderer at function entry).
 
 ## Don't
 
@@ -203,6 +174,6 @@ three real entries, but they're not what blocks the demo today.
 ## Memory update needed at end of session
 
 `/Users/tom/.claude/projects/-Users-tom-projects-svelterm/memory/embedded-terminal-demo.md`
-already records "slice 3 committed and rendering". Update it with the
-six issues above as the next punch list, and clear stale references to
-the customRenderer-`{#if}` hypothesis (which is no longer in play).
+already records the slice 5b completion. Update it with whichever of
+#1–#4 you tackle, the resulting commit hash, and any newly discovered
+caveats.
