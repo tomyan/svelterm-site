@@ -49,10 +49,25 @@ export function mountTerminal(root: HTMLElement): (msg: ParentMessage) => void {
                 postToParent({ kind: 'size', cols: c, rows: r })
             },
             onMouseInput: (data: string) => {
-                if (currentIO) currentIO.feedInput(data)
+                const sink = (globalThis as any).__svtTerminalInputSink
+                if (typeof sink === 'function') {
+                    sink(data)
+                } else if (currentIO) {
+                    currentIO.feedInput(data)
+                }
             },
             onKeyInput: (data: string) => {
-                if (currentIO) currentIO.feedInput(data)
+                // If an EmbeddedTerminalRegion (or other in-app terminal
+                // component) has registered an input sink, forward typed
+                // bytes there directly — that lets the user drive the
+                // embedded shell without keys being intercepted by the
+                // svelterm focus manager wrapping this preview.
+                const sink = (globalThis as any).__svtTerminalInputSink
+                if (typeof sink === 'function') {
+                    sink(data)
+                } else if (currentIO) {
+                    currentIO.feedInput(data)
+                }
             },
             onReady: (handle) => {
                 shellHandle = handle
