@@ -22,6 +22,12 @@ interface V86Module {
 
 let modulePromise: Promise<{ V86Module: V86Module; wasmUrl: string }> | null = null
 
+// Cache-bust v86 binary fetches per page load. Vite serves them with
+// `Cache-Control: no-cache` already, but iframe-internal fetches sometimes
+// hit a stale entry across rebuilds — appending a per-load timestamp guarantees
+// a fresh binary every time we boot the emulator.
+const CACHE_BUST = `?t=${Date.now()}`
+
 function loadV86() {
     if (!modulePromise) {
         modulePromise = Promise.all([
@@ -61,17 +67,28 @@ export function createV86StreamFactory(): V86StreamFactory {
         if (!emulator) {
             emulator = new V86Module.V86({
                 wasm_path: wasmUrl,
-                memory_size: 64 * 1024 * 1024,
+                // 128MB so v86's `create_memory(memory_size, initrd ? 64MB : 1MB)`
+                // can place the initrd at the 64MB mark without overflowing.
+                memory_size: 128 * 1024 * 1024,
                 vga_memory_size: 2 * 1024 * 1024,
-                bios: { url: '/v86/seabios.bin' },
-                vga_bios: { url: '/v86/vgabios.bin' },
-                bzimage: { url: '/v86/svelterm-bzimage.bin' },
-                cmdline: 'tsc=reliable mitigations=off random.trust_cpu=on console=hvc0 quiet loglevel=0',
+                bios: { url: '/v86/seabios.bin' + CACHE_BUST },
+                vga_bios: { url: '/v86/vgabios.bin' + CACHE_BUST },
+                bzimage: { url: '/v86/svelterm-bzimage.bin' + CACHE_BUST },
+                // Overlay cpio stamps /sbin/svtinit (replaces busybox-init's
+                // busy-loop). Built by /Users/tom/v86-buildroot/build-overlay.sh
+                // when rootfs-overlay/ changes. rdinit= (not init=) is required
+                // because buildroot's /init script always exec's /sbin/init
+                // (busybox) regardless of init= cmdline arg.
+                initrd: { url: '/v86/svtinit-overlay.cpio' + CACHE_BUST },
+                cmdline: 'rdinit=/sbin/svtinit mitigations=off random.trust_cpu=on tsc=reliable console=hvc0 quiet loglevel=0',
                 virtio_console: true,
                 autostart: true,
                 disable_keyboard: true,
                 disable_mouse: true,
             })
+            if (import.meta.env.DEV) {
+                ;(window as unknown as { __svtV86?: V86Instance }).__svtV86 = emulator
+            }
         }
         return emulator
     }
@@ -82,6 +99,22 @@ export function createV86StreamFactory(): V86StreamFactory {
         let buffered: Uint8Array | null = null
         let closed = false
         let attached: V86Instance | null = null
+        // Latest size requested. Buffered until attach (kernel module not
+        // ready yet), and re-sent on the kernel's first console output —
+        // SIGWINCH delivered to a tty whose virtio_console driver hasn't
+        // initialised is silently dropped, so the kernel default (80×24)
+        // sticks until something else changes the size. Re-sending after
+        // the first output lands a SIGWINCH after init has wired up the
+        // tty, so processes started by /sbin/init (getty, login shell)
+        // see the right cols/rows.
+        let lastSize: [number, number] | null = null
+        let resentInitialSize = false
+        let pendingWrites: Uint8Array[] = []
+
+        function sendResize(cols: number, rows: number): void {
+            if (!attached) return
+            attached.bus.send('virtio-console0-resize', [cols, rows])
+        }
 
         openCount++
         loadV86().then(({ V86Module, wasmUrl }) => {
@@ -89,12 +122,21 @@ export function createV86StreamFactory(): V86StreamFactory {
             attached = getOrCreateEmulator(V86Module, wasmUrl)
             attached.add_listener('virtio-console0-output-bytes', (bytes: Uint8Array) => {
                 if (closed) return
+                if (!resentInitialSize && lastSize) {
+                    resentInitialSize = true
+                    sendResize(lastSize[0], lastSize[1])
+                }
                 if (outputListeners.size === 0) {
                     buffered = buffered ? concat(buffered, bytes) : bytes
                 } else {
                     for (const cb of outputListeners) cb(bytes)
                 }
             })
+            if (lastSize) sendResize(lastSize[0], lastSize[1])
+            for (const bytes of pendingWrites) {
+                attached.bus.send('virtio-console0-input-bytes', bytes)
+            }
+            pendingWrites = []
         })
 
         return {
@@ -107,12 +149,17 @@ export function createV86StreamFactory(): V86StreamFactory {
                 return () => outputListeners.delete(listener)
             },
             write(bytes) {
-                if (closed || !attached) return
+                if (closed) return
+                if (!attached) {
+                    pendingWrites.push(bytes)
+                    return
+                }
                 attached.bus.send('virtio-console0-input-bytes', bytes)
             },
             resize(cols, rows) {
-                if (closed || !attached) return
-                attached.bus.send('virtio-console0-resize', [cols, rows])
+                if (closed) return
+                lastSize = [cols, rows]
+                sendResize(cols, rows)
             },
             onClose(listener) {
                 closeListeners.add(listener)

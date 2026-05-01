@@ -80,60 +80,17 @@ export function rewriteImports(code: string): string {
  * `@media (display-mode: terminal)` (which contains terminal-specific
  * syntax browsers can't parse). Unwrap the first and strip the second.
  *
- * Also rewrites `@media (prefers-color-scheme: light|dark)` so its rules
- * apply when the iframe has `<html data-theme="...">` set, matching the
- * parent's theme toggle. In a cross-origin iframe `prefers-color-scheme`
- * is bound to OS settings, so we duplicate each rule under a
- * `:root[data-theme="..."]` selector that the iframe can drive directly.
+ * Theme propagation lives in the example CSS itself — examples target both
+ * `@media (prefers-color-scheme: ...)` (OS preference) and
+ * `:root[data-theme="..."]` (host's explicit choice, set by theme.ts), and
+ * use `light-dark()` to keep colour pairs in one place. No rewrite needed.
  */
 export function rewriteCssInJs(js: string): string {
     return js.replace(/(code:\s*')([\s\S]*?)(')/g, (_match, pre, css, post) => {
         let result = css as string
         result = result.replace(/@media\s*\(display-mode:\s*browser\)\s*\{((?:[^{}]|\{[^{}]*\})*)\s*\}/g, '$1')
         result = result.replace(/@media\s*\(display-mode:\s*terminal\)\s*\{(?:[^{}]|\{[^{}]*\})*\}/g, '')
-        result = rewritePrefersColorScheme(result)
         return pre + result + post
-    })
-}
-
-/**
- * For each `@media (prefers-color-scheme: X) { ...rules... }` block, also
- * emit a copy where each rule's selector is scoped under `[data-theme="X"]`
- * — this lets the iframe drive theme via attribute (parent toggle) while
- * still falling through to the OS preference when no `data-theme` is set.
- *
- * Handles single-quote escaping of the resulting CSS so it remains valid
- * inside the surrounding `code: '...'` string literal.
- */
-function rewritePrefersColorScheme(css: string): string {
-    return css.replace(
-        /@media\s*\(prefers-color-scheme:\s*(light|dark)\)\s*\{((?:[^{}]|\{[^{}]*\})*)\s*\}/g,
-        (match, scheme, body) => {
-            // The CSS lives inside a JS string literal in the compiled module.
-            // Newlines in the source are encoded as the two-character sequence
-            // `\n`; inserting a real newline here would unterminate the string
-            // and produce a syntax error at evaluateBlobModule time.
-            const scoped = scopeSelectorsWithDataTheme(body, scheme)
-            return match + '\\n' + scoped
-        },
-    )
-}
-
-function scopeSelectorsWithDataTheme(body: string, scheme: string): string {
-    return body.replace(/([^{}]+)\{([^{}]*)\}/g, (_m, selectorList: string, decls: string) => {
-        const scoped = selectorList
-            .split(',')
-            .map((s) => {
-                const trimmed = s.trim()
-                if (!trimmed) return ''
-                if (trimmed === ':root' || trimmed.startsWith(':root ')) {
-                    return trimmed.replace(/^:root/, `:root[data-theme="${scheme}"]`)
-                }
-                return `[data-theme="${scheme}"] ${trimmed}`
-            })
-            .filter(Boolean)
-            .join(', ')
-        return `${scoped} {${decls}}`
     })
 }
 

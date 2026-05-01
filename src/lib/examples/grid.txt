@@ -8,18 +8,14 @@
 </div>
 
 <style>
-    :root {
-        --fg: #e8e8e8;
-        --accent: #48cae4;
-        --cell-border: #48cae4;
-    }
+    :root { color-scheme: light dark; }
+    :root[data-theme="light"] { color-scheme: light; }
+    :root[data-theme="dark"]  { color-scheme: dark; }
 
-    @media (prefers-color-scheme: light) {
-        :root {
-            --fg: #1a1a2e;
-            --accent: #0891b2;
-            --cell-border: #0891b2;
-        }
+    :root {
+        --fg:          light-dark(#1a1a2e, #e8e8e8);
+        --accent:      light-dark(#0891b2, #48cae4);
+        --cell-border: light-dark(#0891b2, #48cae4);
     }
 
     .grid {

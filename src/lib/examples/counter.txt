@@ -10,20 +10,15 @@
 </div>
 
 <style>
-    :root {
-        --text: #e8e8e8;
-        --accent: #48cae4;
-        --accent-warm: #fbbf24;
-        --btn-border: #555;
-    }
+    :root { color-scheme: light dark; }
+    :root[data-theme="light"] { color-scheme: light; }
+    :root[data-theme="dark"]  { color-scheme: dark; }
 
-    @media (prefers-color-scheme: light) {
-        :root {
-            --text: #1a1a2e;
-            --accent: #0891b2;
-            --accent-warm: #d97706;
-            --btn-border: #999;
-        }
+    :root {
+        --text:        light-dark(#1a1a2e, #e8e8e8);
+        --accent:      light-dark(#0891b2, #48cae4);
+        --accent-warm: light-dark(#d97706, #fbbf24);
+        --btn-border:  light-dark(#999, #555);
     }
 
     .counter {

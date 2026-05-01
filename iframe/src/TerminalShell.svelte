@@ -27,10 +27,14 @@
     let foreground = $state(initialForeground)
     let background = $state(initialBackground)
 
-    const fontFamily = "'JetBrains Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace"
-    let computedFontSize = $state(13)
+    // Font family inherits from the iframe body so the host's stylesheet
+    // (including any @font-face declarations like JetBrains Mono + Pure Nerd
+    // Font) drives terminal cell rendering. Read computed value lazily — the
+    // font-family literal goes through measurement.
+    let fontFamily = ''
+    let computedFontSize = $state(14)
     let charWidth = 0
-    let lineHeight = 13
+    let lineHeight = 14
     let cols = 40
     let rows = 15
     let container: HTMLElement
@@ -66,12 +70,14 @@
     }
 
     onMount(() => {
+        // Pick up font-family from CSS cascade (iframe body sets it).
+        fontFamily = getComputedStyle(container).fontFamily
         const containerWidth = container.clientWidth
         const containerHeight = container.clientHeight
 
-        const minFontSize = 11
-        const maxFontSize = 16
-        const targetFontSize = 13
+        const minFontSize = 12
+        const maxFontSize = 17
+        const targetFontSize = 14
 
         let fontSize = targetFontSize
         let charW = measureChar(fontSize)

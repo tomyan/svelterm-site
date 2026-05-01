@@ -40,6 +40,9 @@
 	let browserJs = $state('');
 	let browserCss = $state('');
 	let regionCode = $state<string | undefined>(undefined);
+	const regionPromise = compileEmbeddedTerminalRegion()
+		.then((c) => { regionCode = c; return c; })
+		.catch((e) => { console.error('Region compile failed:', e); return ''; });
 	let compileError = $state('');
 	let debounceTimer: ReturnType<typeof setTimeout>;
 
@@ -105,14 +108,14 @@
 				browserCss = result.browser.css;
 			}
 			if (result.terminal) {
-				terminalJs = result.terminal.js;
 				terminalCss = result.terminal.css;
-				// Compile the Region lazily on first terminal-mode compile.
-				if (regionCode === undefined) {
-					compileEmbeddedTerminalRegion()
-						.then((c) => { regionCode = c; })
-						.catch((e) => console.error('Region compile failed:', e));
-				}
+				// Resolve the Region compile before publishing terminalJs so the
+				// preview iframe's first mount has both pieces — otherwise the
+				// user code's top-level `await import('@svelterm/vt100/EmbeddedTerminalRegion')`
+				// throws ("not available in this preview") and produces an
+				// unhandled rejection until a second mount with regionCode lands.
+				if (regionCode === undefined) await regionPromise;
+				terminalJs = result.terminal.js;
 			}
 		} catch (e: any) {
 			compileError = e?.message ?? String(e);
@@ -320,25 +323,7 @@
 		flex: 0 0 auto;
 		min-height: 0;
 		overflow: hidden;
-		background: var(--color-bg);
-	}
-
-	.preview-panel:first-child .preview-screen {
-		background-color: #0d1117;
-		background-image:
-			linear-gradient(45deg, #151c24 25%, transparent 25%, transparent 75%, #151c24 75%),
-			linear-gradient(45deg, #151c24 25%, transparent 25%, transparent 75%, #151c24 75%);
-		background-size: 8px 8px;
-		background-position: 0 0, 4px 4px;
-	}
-
-	:global([data-theme="light"]) .preview-panel:first-child .preview-screen {
-		background-color: #ffffff;
-		background-image:
-			linear-gradient(45deg, #f3f3f3 25%, transparent 25%, transparent 75%, #f3f3f3 75%),
-			linear-gradient(45deg, #f3f3f3 25%, transparent 25%, transparent 75%, #f3f3f3 75%);
-		background-size: 8px 8px;
-		background-position: 0 0, 4px 4px;
+		background: transparent;
 	}
 
 	.panel-header {

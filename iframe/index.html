@@ -6,30 +6,35 @@
         <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' blob: 'wasm-unsafe-eval'; worker-src 'self' blob:; connect-src 'self' ws: wss:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:" />
         <meta http-equiv="Permissions-Policy" content="clipboard-read=(), clipboard-write=(), camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=(), bluetooth=(), midi=(), display-capture=()" />
         <style>
-            /* Mirror the parent's theme so the preview body matches the
-               surrounding page chrome. data-theme is set by the iframe's
-               applyTheme() on a parent-driven theme message; when unset
-               (auto), fall back to OS preference. Colors track
-               src/routes/+layout.svelte. */
+            /* Iframe document is transparent — the parent's preview-screen
+               container paints the canvas (a checkerboard pattern) so the
+               user's component renders on top of an obvious "this is empty
+               space" backdrop. color-scheme/color still mirror the parent
+               theme for the default text color used when the user component
+               doesn't set its own. */
             :root {
                 color-scheme: dark;
-                background: #0d1117;
+                background: transparent;
                 color: #e6edf3;
             }
             :root[data-theme="light"] {
                 color-scheme: light;
-                background: #ffffff;
                 color: #1a1a2e;
             }
             @media (prefers-color-scheme: light) {
                 :root:not([data-theme]) {
                     color-scheme: light;
-                    background: #ffffff;
                     color: #1a1a2e;
                 }
             }
-            html, body { margin: 0; padding: 0; height: 100%; }
-            body { font-family: system-ui, -apple-system, sans-serif; }
+            html, body { margin: 0; padding: 0; height: 100%; background: transparent; }
+            /* Default font: JetBrains Mono (ligatures), system monospace
+               for glyphs JBM's webfont doesn't include (box-drawing chars
+               etc — fontsource subsets out U+2500-257F), then Pure Nerd Font
+               last so it only supplies icons no other family has. Putting
+               PNF earlier had it claiming box-drawing glyphs designed too
+               short for the cell, leaving visible row gaps. */
+            body { font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, 'Pure Nerd Font', monospace; }
             #root { width: 100%; height: 100%; }
         </style>
     </head>

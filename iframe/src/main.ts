@@ -5,6 +5,15 @@
  * to the browser or terminal mount handler.
  */
 
+// Cell font: JetBrains Mono (with its built-in ligatures) for code/text,
+// Pure Nerd Font as a glyph-only fallback so any nerd-font icon glyph the
+// embedded shell emits also renders. Both ship as `'self'` woff2 — Vite
+// bundles them through these CSS imports — so the iframe's strict
+// `font-src 'self'` CSP is satisfied without changes.
+import '@fontsource/jetbrains-mono/400.css'
+import '@fontsource/jetbrains-mono/700.css'
+import '@azurity/pure-nerd-font/pure-nerd-font.css'
+
 import type { ParentMessage, IframeMessage } from './protocol.js'
 import { mountBrowser } from './browser-mode.js'
 import { mountTerminal } from './terminal-mode.js'

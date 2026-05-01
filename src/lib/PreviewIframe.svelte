@@ -21,8 +21,7 @@
     }>()
 
     let iframe: HTMLIFrameElement
-    let ready = false
-    let pendingMount: { code: string; css: string; regionCode?: string } | null = null
+    let ready = $state(false)
 
     function post(message: ParentMessage) {
         if (!iframe?.contentWindow) return
@@ -36,10 +35,6 @@
         if (!msg || typeof msg !== 'object') return
         if (msg.kind === 'ready') {
             ready = true
-            if (pendingMount) {
-                post({ kind: 'mount', ...pendingMount })
-                pendingMount = null
-            }
         } else if (msg.kind === 'size') {
             onSize(msg.cols, msg.rows)
         } else if (msg.kind === 'error') {
@@ -64,11 +59,7 @@
         const c = code
         const cs = css
         const rc = regionCode
-        if (!c) return
-        if (!ready) {
-            pendingMount = { code: c, css: cs, regionCode: rc }
-            return
-        }
+        if (!c || !ready) return
         post({ kind: 'mount', code: c, css: cs, regionCode: rc })
     })
 

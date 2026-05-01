@@ -29,7 +29,7 @@ export function mountTerminal(root: HTMLElement): (msg: ParentMessage) => void {
     let cols = 40
     let rows = 15
     let currentIO: InProcessIO | null = null
-    let currentCleanup: (() => void) | null = null
+    let currentRun: import('@svelterm/core/app').RunHandle | null = null
     let regionLoaded = false
     let themeMode: ThemeMode = 'auto'
     let appliedScheme: 'dark' | 'light' = resolveScheme(themeMode)
@@ -97,14 +97,13 @@ export function mountTerminal(root: HTMLElement): (msg: ParentMessage) => void {
             io.onOutput = (data: string) => terminal.write(data)
             currentIO = io
             appliedScheme = resolveScheme(themeMode)
-            currentCleanup = run(mod.default, {
+            currentRun = run(mod.default, {
                 css: payload.css,
                 fullscreen: false,
                 mouse: true,
                 io,
                 colorScheme: appliedScheme,
             })
-            terminal.write('\x1b[?25l')
         } catch (e: any) {
             postToParent({ kind: 'error', message: e.message ?? String(e) })
         }
@@ -118,24 +117,23 @@ export function mountTerminal(root: HTMLElement): (msg: ParentMessage) => void {
             themeMode = msg.mode
             applyTheme(msg.mode)
             const scheme = resolveScheme(themeMode)
-            const c = termColors(scheme)
-            shellHandle?.setColors(c.foreground, c.background)
-            // Only replay the user's mount if the resolved scheme actually
-            // changed — otherwise the initial 'auto' theme message from the
-            // parent would tear down a fresh mount (and any v86 emulator
-            // booting inside) before its first frame rendered.
-            if (lastMount && scheme !== appliedScheme) {
-                await applyMount(lastMount)
-            }
+            shellHandle?.setColors(termColors(scheme).foreground, termColors(scheme).background)
+            appliedScheme = scheme
+            // Push the new scheme into the live svelterm run. svelterm
+            // repaints with new defaults, so default-colored cells (including
+            // those emitted by EmbeddedTerminalRegion) recolor without us
+            // having to tear down the user component (which would close the
+            // v86 stream and reboot the emulator).
+            currentRun?.setColorScheme(scheme)
         } else if (msg.kind === 'destroy') {
             tearDown()
         }
     }
 
     function tearDown() {
-        if (currentCleanup) {
-            try { currentCleanup() } catch {}
-            currentCleanup = null
+        if (currentRun) {
+            try { currentRun.cleanup() } catch {}
+            currentRun = null
         }
         currentIO = null
         v86Factory.destroy()
