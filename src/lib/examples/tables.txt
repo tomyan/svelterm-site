@@ -1,0 +1,130 @@
+<table class="data">
+    <caption>Quarterly revenue</caption>
+    <colgroup>
+        <col class="col-quarter">
+        <col class="col-region">
+        <col class="col-revenue">
+    </colgroup>
+    <thead>
+        <tr>
+            <th rowspan="2">Quarter</th>
+            <th colspan="2">Sales</th>
+        </tr>
+        <tr>
+            <th>Region</th>
+            <th>Revenue</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr><td rowspan="2">Q1</td><td>North</td><td>$120k</td></tr>
+        <tr><td>South</td><td>$98k</td></tr>
+        <tr><td rowspan="2">Q2</td><td>North</td><td>$140k</td></tr>
+        <tr><td>South</td><td>$112k</td></tr>
+    </tbody>
+    <tfoot>
+        <tr><td colspan="2">Total</td><td>$470k</td></tr>
+    </tfoot>
+</table>
+
+<style>
+    :root { color-scheme: light dark; }
+    :root[data-theme="light"] { color-scheme: light; }
+    :root[data-theme="dark"]  { color-scheme: dark; }
+
+    :root {
+        --fg:     light-dark(#1a1a2e, #e8e8e8);
+        --accent: light-dark(#0891b2, #48cae4);
+        --muted:  light-dark(#64748b, #94a3b8);
+    }
+
+    .data {
+        color: var(--fg);
+
+        @media (display-mode: browser) {
+            border-collapse: collapse;
+            font-family: system-ui, sans-serif;
+            margin: 1rem;
+        }
+
+        @media (display-mode: terminal) {
+            margin: 1cell;
+        }
+    }
+
+    .col-quarter {
+        @media (display-mode: browser) {
+            width: 8rem;
+        }
+
+        @media (display-mode: terminal) {
+            width: 10cell;
+        }
+    }
+
+    .col-region {
+        @media (display-mode: browser) {
+            width: 8rem;
+        }
+
+        @media (display-mode: terminal) {
+            width: 10cell;
+        }
+    }
+
+    .col-revenue {
+        @media (display-mode: browser) {
+            width: 8rem;
+        }
+
+        @media (display-mode: terminal) {
+            width: 10cell;
+        }
+    }
+
+    .data caption {
+        color: var(--accent);
+        font-weight: bold;
+
+        @media (display-mode: browser) {
+            padding: 0.5rem 0;
+        }
+
+        @media (display-mode: terminal) {
+            padding-bottom: 1cell;
+        }
+    }
+
+    .data th {
+        color: var(--accent);
+        vertical-align: middle;
+
+        @media (display-mode: browser) {
+            padding: 0.5rem 1rem;
+            border-bottom: 2px solid var(--accent);
+        }
+
+        @media (display-mode: terminal) {
+            padding: 0 1cell;
+        }
+    }
+
+    .data tbody td:first-child {
+        vertical-align: middle;
+    }
+
+    .data td {
+        @media (display-mode: browser) {
+            padding: 0.25rem 1rem;
+            border-bottom: 1px solid var(--muted);
+        }
+
+        @media (display-mode: terminal) {
+            padding: 0 1cell;
+        }
+    }
+
+    .data tfoot td {
+        color: var(--muted);
+        font-weight: bold;
+    }
+</style>
